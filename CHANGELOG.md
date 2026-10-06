@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1
+
+- Neues Brand-Icon (Wolke mit Ortungssignal).
+
 ## 0.3.0
 
 - Knopf „Ton abspielen“ je Gerät mit Suchton-Funktion („Wo ist?“ → Ton abspielen);
