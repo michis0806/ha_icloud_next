@@ -1,62 +1,135 @@
-# iCloud Next
+# iCloud Next (`icloud_next`)
 
-Home-Assistant-Integration für Apple iCloud: **Find My mit aktiver Ortung**,
-Position je Person, **iCloud-Speicher** und Seriennummer/OS-Version der Geräte.
+[![Open your Home Assistant instance and open this repository inside HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=michis0806&repository=ha_icloud_next&category=integration)
+[![Open your Home Assistant instance and start setting up this integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=icloud_next)
 
-Entstanden, weil die offizielle `icloud`-Integration seit Home Assistant 2026.2
-(pyicloud ≥ 2.3) bei den regelmäßigen Abfragen nur noch Apples Positions-Cache
-liest — Akkustände sind aktuell, Positionen oft stundenlang alt
-([core#181730](https://github.com/home-assistant/core/issues/181730)).
+Home Assistant custom integration for Apple iCloud: **Find My with active
+locating**, a location **per person**, **iCloud storage** usage and serial number /
+OS version of your devices.
 
-## Was anders ist
+[Deutsche Beschreibung weiter unten.](#deutsch)
 
-- **Aktive Ortung bei jeder Abfrage.** Apple liefert die neue Position zeitversetzt;
-  die Integration stößt die Ortung an und liest das Ergebnis 30 Sekunden später.
-- **Ortungszeit, „veraltet“ und Positionsquelle** (WLAN/GPS) je Gerät.
-- **Position je Person.** Apple selbst liefert nur Geräte. Pro Person wird das erste
-  Gerät mit frischer Position in der Reihenfolge iPhone → Apple Watch → iPad
-  genommen, damit eine zu Hause ladende Uhr nicht das mitgeführte iPhone überstimmt.
-- **2FA mit Wahl des Wegs.** Bei Einrichtung und Neuanmeldung wird der Code erst
-  angefordert, nachdem du Push oder SMS gewählt hast. Läuft Apples Anmeldung ab,
-  startet die Integration die Neuanmeldung (Reparaturen) und verschickt nie
-  unaufgefordert einen Code.
-- **Eigene Sitzung** unter `.storage/icloud_next/` — läuft parallel zur offiziellen
-  Integration, ohne deren Sitzung anzufassen.
-- **Familie optional.** Bei der Einrichtung (und später in den Optionen) wählbar,
-  ob die Familienfreigabe mit abgefragt wird.
+## Why
+
+Since Home Assistant 2026.2 (pyicloud ≥ 2.3) the official
+[iCloud integration](https://www.home-assistant.io/integrations/icloud/) only reads
+Apple's location cache on its regular polls — battery levels are current, but
+locations can be hours old
+([core#181730](https://github.com/home-assistant/core/issues/181730)). In addition,
+an expired Apple session leaves it stuck in `setup_error` instead of asking you to
+sign in again.
+
+## What it does differently
+
+- **Active locating on every poll.** Apple delivers the new location with a delay;
+  the integration triggers a locate request and reads the result 30 seconds later.
+- **Location timestamp, "outdated" flag and position source** (Wi-Fi / GPS) per device.
+- **Location per person.** Apple itself only reports devices. For every person the
+  first device with a fresh location is used, in the order iPhone → Apple Watch →
+  iPad, so a watch charging at home does not override the iPhone being carried.
+- **Two-factor authentication with a choice of delivery.** During setup and
+  re-authentication the code is only requested after you choose **push to your
+  Apple devices** or **SMS**. When Apple ends the session, the integration starts a
+  re-authentication (Settings → Repairs) and never sends a code on its own.
+- **Its own session** under `.storage/icloud_next/` — runs side by side with the
+  official integration without touching its session.
+- **Family optional.** Choose during setup (and later in the options) whether
+  Family Sharing members are included.
 
 ## Entities
 
-Je Find-My-Gerät: Position, Akku, Ladezustand, Online, Stromsparmodus,
-Letzte Ortung. Geräte des eigenen Kontos zusätzlich mit Betriebssystem und
-Seriennummer (Apple gibt beides für Familiengeräte nicht heraus). Apple TVs und
-andere Kontogeräte ohne Find My erscheinen mit ihrer OS-Version.
+| For | Entities |
+|---|---|
+| Every Find My device | Location, Battery, Charging state, Online, Low power mode, Last located |
+| Devices of your own account | additionally Operating system; serial number and OS version in the device info |
+| Account devices without Find My (e.g. Apple TV) | Operating system |
+| Every person | Location (attribute `geraet` = source device), Location outdated |
+| Account | Storage used / total / free / percent, per category (photos, backups, documents, mail, messages); with family also total and per member; Storage almost full, Storage exceeded |
 
-Je Person: Position (mit Attribut `geraet`) und „Position veraltet“.
+Notes:
 
-Konto: Speicher belegt / gesamt / frei / Prozent, je Bereich (Fotos, Backups,
-Dokumente, Mail, Nachrichten), mit Familie zusätzlich gesamt und je Mitglied,
-dazu „Speicher fast voll“ und „Speicher überschritten“.
-
-Neue Geräte erscheinen nach einem Neuladen der Integration.
+- Apple only reports serial number and OS version for devices of the signed-in
+  account, not for family members' devices, and masks the serial number (last five
+  characters only).
+- Location entities of AirPods and other accessories are disabled by default.
+- New devices appear after reloading the integration.
 
 ## Installation
 
-HACS → Benutzerdefinierte Repositories → `https://github.com/michis0806/ha_icloud_next`
-(Kategorie Integration), installieren, Home Assistant neu starten, dann
-Einstellungen → Geräte & Dienste → Integration hinzufügen → „iCloud Next“.
+### HACS (custom repository)
 
-## Optionen
+Click the HACS badge above, or manually:
 
-- **Ortung alle … Minuten** (Standard 15, 5–120). Jede Abfrage weckt die Ortung
-  auf allen Geräten — kürzere Abstände kosten Akku.
-- **Familie mitabfragen**
+1. HACS → Integrations → ⋮ → *Custom repositories*
+2. Add `https://github.com/michis0806/ha_icloud_next` (category: Integration)
+3. Install **iCloud Next** and restart Home Assistant.
 
-Speicher und Kontogeräte werden stündlich abgefragt.
+### Manual
 
-## Hinweise
+Copy `custom_components/icloud_next/` into your `config/custom_components/` folder
+and restart Home Assistant.
 
-- Konten mit Sicherheitsschlüssel (FIDO2) werden nicht unterstützt.
-- Die 2FA-Steuerung nutzt interne Methoden von pyicloud (getestet mit 2.6.5 und 2.7.0).
-- Abgerufen werden nur lesende Daten; Seriennummer ja, IMEI, UDID und
-  Zahlungsmittel aus derselben Apple-Antwort werden verworfen.
+## Setup
+
+Settings → Devices & services → *Add integration* → **iCloud Next**
+(or click the setup badge above).
+
+1. Enter Apple ID and password and choose whether to include the family.
+2. If Apple asks for two-factor verification, choose push or SMS.
+3. Enter the six-digit code.
+
+## Options
+
+- **Locate every … minutes** (default 15, 5–120). Every poll wakes up location
+  services on all devices — shorter intervals cost battery.
+- **Include family**
+
+Storage and account devices are polled hourly. If Apple is temporarily unreachable,
+the last values are kept for up to 30 minutes before entities become `unavailable`.
+
+## Limitations
+
+- Accounts that require a hardware security key (FIDO2) are not supported.
+- Two-factor control uses internal methods of
+  [pyicloud](https://github.com/timlaing/pyicloud) (tested with 2.6.5 and 2.7.0).
+- Read-only: no play sound, lost mode or erase.
+- Only the serial number is kept from Apple's device list; IMEI, UDID and payment
+  methods in the same response are discarded.
+
+## Icon
+
+The integration ships its own brand icon (`brand/` folder inside the integration);
+Home Assistant 2026.3 or newer picks it up automatically.
+
+## Disclaimer
+
+This project is not affiliated with Apple. iCloud and Find My are trademarks of
+Apple Inc. Use at your own risk.
+
+---
+
+## Deutsch
+
+Home-Assistant-Integration für Apple iCloud: **„Wo ist?“ mit aktiver Ortung**,
+Position **je Person**, **iCloud-Speicher** sowie Seriennummer und OS-Version der Geräte.
+
+- Die offizielle iCloud-Integration liest seit Home Assistant 2026.2 nur noch Apples
+  Positions-Cache; Positionen sind dadurch oft stundenlang alt. iCloud Next stößt bei
+  jeder Abfrage eine **aktive Ortung** an und liest das Ergebnis 30 Sekunden später.
+- Je Gerät mit **Ortungszeit, „veraltet“ und Positionsquelle** (WLAN/GPS).
+- **Position je Person:** erstes frisches Gerät in der Reihenfolge iPhone → Apple Watch
+  → iPad, damit eine zu Hause ladende Uhr nicht das mitgeführte iPhone überstimmt.
+- **2FA mit Wahl Push oder SMS** bei Einrichtung und Neuanmeldung; der Code wird erst
+  nach der Wahl angefordert. Läuft die Anmeldung bei Apple ab, erscheint eine
+  Reparaturmeldung — es werden nie unaufgefordert Codes verschickt.
+- **Familie wahlweise** mit abfragen (bei der Einrichtung und in den Optionen).
+- **iCloud-Speicher:** belegt, gesamt, frei, Prozent, je Bereich und je
+  Familienmitglied, dazu Warnungen „fast voll“ und „überschritten“.
+- Seriennummer und OS-Version gibt Apple nur für Geräte des eigenen Kontos heraus;
+  die Seriennummer ist von Apple maskiert (nur die letzten fünf Zeichen).
+- Installation über HACS (Custom Repository) oder manuell nach
+  `config/custom_components/`, danach Neustart; Einrichtung über
+  *Integration hinzufügen* → **iCloud Next**.
+- Optionen: Ortungsintervall (Standard 15 Minuten) und Familie. Speicher und
+  Kontogeräte werden stündlich abgefragt; bei Störungen bleiben die letzten Werte
+  bis zu 30 Minuten erhalten.
