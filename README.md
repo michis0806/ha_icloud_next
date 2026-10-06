@@ -80,7 +80,7 @@ Settings → Devices & services → *Add integration* → **iCloud Next**
 
 ## Options
 
-- **Locate every … minutes** (default 15, 5–120). Every poll wakes up location
+- **Locate interval (minutes)** (default 15, 5–120). Every poll wakes up location
   services on all devices — shorter intervals cost battery.
 - **Include family**
 

@@ -54,22 +54,28 @@
       "init": {
         "title": "iCloud Next",
         "data": {
-          "scan_interval": "Locate every … minutes",
+          "scan_interval": "Locate interval (minutes)",
           "with_family": "Include family"
         },
         "data_description": {
-          "scan_interval": "Every poll actively locates all devices. Shorter intervals cost battery on the devices."
+          "scan_interval": "Time between two active locate requests. Every poll actively locates all devices; shorter intervals cost battery on the devices."
         }
       }
     }
   },
   "entity": {
     "device_tracker": {
-      "position": { "name": "Location" },
-      "person": { "name": "Location" }
+      "position": {
+        "name": "Location"
+      },
+      "person": {
+        "name": "Location"
+      }
     },
     "sensor": {
-      "akku": { "name": "Battery" },
+      "akku": {
+        "name": "Battery"
+      },
       "ladezustand": {
         "name": "Charging state",
         "state": {
@@ -79,22 +85,50 @@
           "unbekannt": "Unknown"
         }
       },
-      "ortungszeit": { "name": "Last located" },
-      "betriebssystem": { "name": "Operating system" },
-      "speicher_belegt": { "name": "Storage used" },
-      "speicher_gesamt": { "name": "Storage total" },
-      "speicher_frei": { "name": "Storage free" },
-      "speicher_prozent": { "name": "Storage used (percent)" },
-      "speicher_bereich": { "name": "Storage {name}" },
-      "speicher_familie": { "name": "Storage family" },
-      "speicher_mitglied": { "name": "Storage {name}" }
+      "ortungszeit": {
+        "name": "Last located"
+      },
+      "betriebssystem": {
+        "name": "Operating system"
+      },
+      "speicher_belegt": {
+        "name": "Storage used"
+      },
+      "speicher_gesamt": {
+        "name": "Storage total"
+      },
+      "speicher_frei": {
+        "name": "Storage free"
+      },
+      "speicher_prozent": {
+        "name": "Storage used (percent)"
+      },
+      "speicher_bereich": {
+        "name": "Storage {name}"
+      },
+      "speicher_familie": {
+        "name": "Storage family"
+      },
+      "speicher_mitglied": {
+        "name": "Storage {name}"
+      }
     },
     "binary_sensor": {
-      "online": { "name": "Online" },
-      "stromsparmodus": { "name": "Low power mode" },
-      "position_veraltet": { "name": "Location outdated" },
-      "speicher_fast_voll": { "name": "Storage almost full" },
-      "speicher_ueber_kontingent": { "name": "Storage exceeded" }
+      "online": {
+        "name": "Online"
+      },
+      "stromsparmodus": {
+        "name": "Low power mode"
+      },
+      "position_veraltet": {
+        "name": "Location outdated"
+      },
+      "speicher_fast_voll": {
+        "name": "Storage almost full"
+      },
+      "speicher_ueber_kontingent": {
+        "name": "Storage exceeded"
+      }
     }
   }
 }

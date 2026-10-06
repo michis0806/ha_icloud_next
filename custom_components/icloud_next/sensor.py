@@ -88,6 +88,9 @@ async def async_setup_entry(
             )
         )
     async_add_entities(entities)
+    # Für das Aufräumen in __init__.py: was bei diesem Laden angelegt wurde
+    entry.runtime_data["unique_ids"].update(e.unique_id for e in entities)
+    entry.runtime_data["plattformen"].add(__name__.rsplit(".", 1)[-1])
 
 
 def _frei(s: dict[str, Any]) -> int | None:

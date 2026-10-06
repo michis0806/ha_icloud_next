@@ -25,6 +25,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from . import api
@@ -40,7 +41,7 @@ from .const import (
     LOCATE_WAIT,
     PERSON_DEVICE_PRIORITY,
 )
-from .entity import geraete_registrieren
+from .entity import aufraeumen, darf_geloescht_werden, geraete_registrieren
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -75,12 +76,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await konto.async_config_entry_first_refresh()
     await ortung.async_config_entry_first_refresh()
 
-    entry.runtime_data = {"ortung": ortung, "konto": konto, "dienst": dienst}
+    entry.runtime_data = {
+        "ortung": ortung,
+        "konto": konto,
+        "dienst": dienst,
+        "unique_ids": set(),
+        "plattformen": set(),
+    }
     geraete_registrieren(hass, entry)
     # OS-Updates und neue Kontogeräte ins Device-Registry übernehmen
     entry.async_on_unload(konto.async_add_listener(lambda: geraete_registrieren(hass, entry)))
     entry.async_on_unload(entry.add_update_listener(_optionen_geaendert))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    # Nur aufräumen, wenn alle Plattformen vollständig geladen haben — sonst würden
+    # die Entities einer gescheiterten Plattform fälschlich entfernt.
+    if entry.runtime_data["plattformen"] == set(PLATFORMS):
+        aufraeumen(hass, entry, entry.runtime_data["unique_ids"])
     # Gleich nach dem Start einmal aktiv orten statt erst nach dem ersten Intervall.
     entry.async_create_background_task(
         hass, ortung.async_refresh(), f"{DOMAIN}_erste_ortung"
@@ -101,6 +112,13 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if stop is not None:
             stop.set()
     return ok
+
+
+async def async_remove_config_entry_device(
+    hass: HomeAssistant, entry: ConfigEntry, geraet: dr.DeviceEntry
+) -> bool:
+    """Löschen-Knopf in der Geräteansicht — nur für Geräte, die Apple nicht mehr meldet."""
+    return darf_geloescht_werden(entry, geraet)
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:

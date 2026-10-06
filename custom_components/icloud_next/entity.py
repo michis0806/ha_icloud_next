@@ -8,15 +8,19 @@ Gerätestruktur unterhalb des Kontos ("iCloud <Inhaber>"):
 """
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity, DataUpdateCoordinator
 
 from .const import CONF_APPLE_ID, DOMAIN
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def zuordnung(
@@ -112,6 +116,51 @@ def geraete_registrieren(hass: HomeAssistant, entry: ConfigEntry) -> None:
             sw_version=kg.get("betriebssystem"),
             via_device_id=hub.id,
         )
+
+
+def erwartete_geraete(entry: ConfigEntry) -> set[str]:
+    """Kennungen aller Geräte, die Apple aktuell meldet (inkl. Konto und Personen)."""
+    ortung = entry.runtime_data["ortung"].data
+    _, rest = zuordnung(ortung, entry.runtime_data["konto"].data)
+    return (
+        {konto_kennung(entry)}
+        | set(ortung["geraete"])
+        | {person_kennung(p) for p in ortung.get("zusammengefasst") or {}}
+        | {kontogeraet_kennung(kg) for kg in rest}
+    )
+
+
+def _kennung(geraet: dr.DeviceEntry) -> str | None:
+    return next((i[1] for i in geraet.identifiers if i[0] == DOMAIN), None)
+
+
+def aufraeumen(hass: HomeAssistant, entry: ConfigEntry, unique_ids: set[str]) -> None:
+    """Beim (Neu-)Laden entfernen, was Apple nicht mehr meldet.
+
+    Geräte nur, wenn die Antwort vollständig war: Apple lädt Familiengeräte
+    asynchron nach, ein Mitglied auf LOADING fehlt sonst scheinbar. Entities
+    (z. B. Speicher eines Mitglieds nach Abschalten der Familie) werden entfernt,
+    wenn sie bei diesem Laden nicht mehr angelegt wurden.
+    """
+    ortung = entry.runtime_data["ortung"].data
+    if ortung["geraete"] and ortung.get("familie_vollstaendig", True):
+        erwartet = erwartete_geraete(entry)
+        registry = dr.async_get(hass)
+        for geraet in dr.async_entries_for_config_entry(registry, entry.entry_id):
+            if _kennung(geraet) not in erwartet:
+                _LOGGER.info("Entferne %s – von Apple nicht mehr gemeldet", geraet.name)
+                # Geräte gehören immer nur zu einem Config-Entry
+                registry.async_remove_device(geraet.id)
+    entities = er.async_get(hass)
+    for eintrag in er.async_entries_for_config_entry(entities, entry.entry_id):
+        if eintrag.unique_id not in unique_ids:
+            _LOGGER.info("Entferne %s – wird nicht mehr bereitgestellt", eintrag.entity_id)
+            entities.async_remove(eintrag.entity_id)
+
+
+def darf_geloescht_werden(entry: ConfigEntry, geraet: dr.DeviceEntry) -> bool:
+    """Löschen-Knopf nur für Geräte, die Apple nicht mehr meldet."""
+    return _kennung(geraet) not in erwartete_geraete(entry)
 
 
 class ICloudEntity(CoordinatorEntity[DataUpdateCoordinator[dict[str, Any]]]):

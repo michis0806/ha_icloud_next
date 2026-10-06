@@ -235,7 +235,17 @@ def ortung(api: _Dienst, aktiv: bool) -> dict[str, Any]:
             "ungenau": ort.get("isInaccurate"),
             "positionsquelle": ort.get("positionType"),
         }
-    return {"geraete": ergebnis, "personen": personen, "inhaber": inhaber}
+    # Apple lädt die Familiengeräte asynchron nach; steht ein Mitglied noch auf
+    # LOADING, fehlen seine Geräte in dieser Antwort. Dann darf nichts aufgeräumt werden.
+    vollstaendig = all(
+        v.get("deviceFetchStatus") == "DONE" for v in (info.get("membersInfo") or {}).values()
+    )
+    return {
+        "geraete": ergebnis,
+        "personen": personen,
+        "inhaber": inhaber,
+        "familie_vollstaendig": vollstaendig,
+    }
 
 
 def konto(api: _Dienst, familie: bool) -> dict[str, Any]:

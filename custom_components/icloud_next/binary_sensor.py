@@ -36,6 +36,9 @@ async def async_setup_entry(
         SpeicherWarnung(konto, entry, hub, "speicher_ueber_kontingent", "ueber_kontingent"),
     ]
     async_add_entities(entities)
+    # Für das Aufräumen in __init__.py: was bei diesem Laden angelegt wurde
+    entry.runtime_data["unique_ids"].update(e.unique_id for e in entities)
+    entry.runtime_data["plattformen"].add(__name__.rsplit(".", 1)[-1])
 
 
 class OnlineSensor(GeraetEntity, BinarySensorEntity):

@@ -1,7 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.1.1
 
+- Beim Laden/Neuladen werden Geräte, die Apple nicht mehr meldet, samt Entities entfernt
+  (nicht, solange Apple die Familiengeräte noch nachlädt); nicht mehr bereitgestellte
+  Entities (z. B. nach Abschalten der Familie) ebenso.
+- Löschen-Knopf für Geräte, die Apple nicht mehr meldet.
+- Optionen: Beschriftung „Ortungsintervall (Minuten)“.
 - README auf Englisch mit HACS- und Einrichtungs-Button, deutscher Abschnitt darunter.
 - Eigenes Brand-Icon (`brand/icon.png`, `brand/icon@2x.png`) für HA 2026.3+.
 

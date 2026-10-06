@@ -54,22 +54,28 @@
       "init": {
         "title": "iCloud Next",
         "data": {
-          "scan_interval": "Ortung alle … Minuten",
+          "scan_interval": "Ortungsintervall (Minuten)",
           "with_family": "Familie mitabfragen"
         },
         "data_description": {
-          "scan_interval": "Jede Abfrage lässt alle Geräte aktiv orten. Kürzere Abstände kosten Akku auf den Geräten."
+          "scan_interval": "Abstand zwischen zwei aktiven Ortungen. Jede Abfrage lässt alle Geräte aktiv orten, kürzere Abstände kosten Akku auf den Geräten."
         }
       }
     }
   },
   "entity": {
     "device_tracker": {
-      "position": { "name": "Position" },
-      "person": { "name": "Position" }
+      "position": {
+        "name": "Position"
+      },
+      "person": {
+        "name": "Position"
+      }
     },
     "sensor": {
-      "akku": { "name": "Akku" },
+      "akku": {
+        "name": "Akku"
+      },
       "ladezustand": {
         "name": "Ladezustand",
         "state": {
@@ -79,22 +85,50 @@
           "unbekannt": "Unbekannt"
         }
       },
-      "ortungszeit": { "name": "Letzte Ortung" },
-      "betriebssystem": { "name": "Betriebssystem" },
-      "speicher_belegt": { "name": "Speicher belegt" },
-      "speicher_gesamt": { "name": "Speicher gesamt" },
-      "speicher_frei": { "name": "Speicher frei" },
-      "speicher_prozent": { "name": "Speicher belegt (Prozent)" },
-      "speicher_bereich": { "name": "Speicher {name}" },
-      "speicher_familie": { "name": "Speicher Familie" },
-      "speicher_mitglied": { "name": "Speicher {name}" }
+      "ortungszeit": {
+        "name": "Letzte Ortung"
+      },
+      "betriebssystem": {
+        "name": "Betriebssystem"
+      },
+      "speicher_belegt": {
+        "name": "Speicher belegt"
+      },
+      "speicher_gesamt": {
+        "name": "Speicher gesamt"
+      },
+      "speicher_frei": {
+        "name": "Speicher frei"
+      },
+      "speicher_prozent": {
+        "name": "Speicher belegt (Prozent)"
+      },
+      "speicher_bereich": {
+        "name": "Speicher {name}"
+      },
+      "speicher_familie": {
+        "name": "Speicher Familie"
+      },
+      "speicher_mitglied": {
+        "name": "Speicher {name}"
+      }
     },
     "binary_sensor": {
-      "online": { "name": "Online" },
-      "stromsparmodus": { "name": "Stromsparmodus" },
-      "position_veraltet": { "name": "Position veraltet" },
-      "speicher_fast_voll": { "name": "Speicher fast voll" },
-      "speicher_ueber_kontingent": { "name": "Speicher überschritten" }
+      "online": {
+        "name": "Online"
+      },
+      "stromsparmodus": {
+        "name": "Stromsparmodus"
+      },
+      "position_veraltet": {
+        "name": "Position veraltet"
+      },
+      "speicher_fast_voll": {
+        "name": "Speicher fast voll"
+      },
+      "speicher_ueber_kontingent": {
+        "name": "Speicher überschritten"
+      }
     }
   }
 }
