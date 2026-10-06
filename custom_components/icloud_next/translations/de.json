@@ -134,6 +134,11 @@
       "mitteilung": {
         "name": "Mitteilung"
       }
+    },
+    "button": {
+      "ton_abspielen": {
+        "name": "Ton abspielen"
+      }
     }
   },
   "services": {

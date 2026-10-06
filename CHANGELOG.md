@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.0
+
+- Knopf „Ton abspielen“ je Gerät mit Suchton-Funktion („Wo ist?“ → Ton abspielen);
+  bei AirPods & Co. standardmäßig deaktiviert.
+
 ## 0.2.0
 
 - Mitteilungen: je nachrichtenfähigem Gerät eine `notify`-Entity („Mitteilung“) für

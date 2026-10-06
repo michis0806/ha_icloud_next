@@ -134,6 +134,11 @@
       "mitteilung": {
         "name": "Message"
       }
+    },
+    "button": {
+      "ton_abspielen": {
+        "name": "Play sound"
+      }
     }
   },
   "services": {

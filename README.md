@@ -44,6 +44,7 @@ sign in again.
 | Devices of your own account | additionally Operating system; serial number and OS version in the device info |
 | Account devices without Find My (e.g. Apple TV) | Operating system |
 | Every device that can display messages (iPhone, iPad, Mac, Watch) | Message (`notify` entity) |
+| Every device that can play the Find My sound | Play sound (button; disabled by default for AirPods) |
 | Every person | Location (attribute `geraet` = source device), Location outdated |
 | Account | Storage used / total / free / percent, per category (photos, backups, documents, mail, messages); with family also total and per member; Storage almost full, Storage exceeded |
 
@@ -119,7 +120,7 @@ the last values are kept for up to 30 minutes before entities become `unavailabl
 - Accounts that require a hardware security key (FIDO2) are not supported.
 - Two-factor control uses internal methods of
   [pyicloud](https://github.com/timlaing/pyicloud) (tested with 2.6.5 and 2.7.0).
-- Apart from messages the integration is read-only: no lost mode, no erase.
+- Apart from messages and the Find My sound the integration is read-only: no lost mode, no erase.
 - Only the serial number is kept from Apple's device list; IMEI, UDID and payment
   methods in the same response are discarded.
 
@@ -151,6 +152,7 @@ Position **je Person**, **iCloud-Speicher** sowie Seriennummer und OS-Version de
   Reparaturmeldung — es werden nie unaufgefordert Codes verschickt.
 - **Mitteilungen:** je Gerät eine `notify`-Entity („Mitteilung“) für `notify.send_message`,
   mit Ton über die Aktion `icloud_next.display_message` („Wo ist?“ → Mitteilung anzeigen).
+- **Ton abspielen:** Knopf je Gerät für den Suchton aus „Wo ist?“.
 - **Familie wahlweise** mit abfragen (bei der Einrichtung und in den Optionen).
 - **iCloud-Speicher:** belegt, gesamt, frei, Prozent, je Bereich und je
   Familienmitglied, dazu Warnungen „fast voll“ und „überschritten“.
