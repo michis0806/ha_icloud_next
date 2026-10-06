@@ -216,6 +216,8 @@ def ortung(api: _Dienst, aktiv: bool) -> dict[str, Any]:
             "modell": d.get("deviceDisplayName") or d.get("modelDisplayName"),
             "modell_kennung": d.get("rawDeviceModel"),
             "klasse": d.get("deviceClass"),
+            # Apple-Feature-Flag "MSG": Gerät kann eine Mitteilung anzeigen
+            "nachricht_moeglich": bool((d.get("features") or {}).get("MSG")),
             "zubehoer": d.get("deviceClass") == "Accessory"
             or bool(d.get("isConsideredAccessory")),
             "person": person,  # None = Kontoinhaber
@@ -246,6 +248,21 @@ def ortung(api: _Dienst, aktiv: bool) -> dict[str, Any]:
         "inhaber": inhaber,
         "familie_vollstaendig": vollstaendig,
     }
+
+
+def nachricht_senden(
+    api: _Dienst, geraet_id: str, titel: str, text: str, ton: bool
+) -> None:
+    """Eine Mitteilung auf einem Gerät anzeigen ("Wo ist?" → Mitteilung anzeigen)."""
+    try:
+        geraet = next((d for d in api.devices if d.data.get("id") == geraet_id), None)
+        if geraet is None:
+            raise ICloudError("Gerät wird von Apple nicht mehr gemeldet")
+        geraet.display_message(subject=titel, message=text, sounds=ton)
+    except PyiCloudAuthRequiredException as err:
+        raise ICloudAuthError(str(err)) from err
+    except (PyiCloudException, OSError) as err:
+        raise ICloudError(str(err)) from err
 
 
 def konto(api: _Dienst, familie: bool) -> dict[str, Any]:

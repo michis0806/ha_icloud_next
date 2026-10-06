@@ -45,7 +45,7 @@ from .entity import aufraeumen, darf_geloescht_werden, geraete_registrieren
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = ["binary_sensor", "device_tracker", "sensor"]
+PLATFORMS = ["binary_sensor", "device_tracker", "notify", "sensor"]
 
 
 def familie_aktiv(entry: ConfigEntry) -> bool:

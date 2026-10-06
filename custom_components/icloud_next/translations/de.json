@@ -129,6 +129,31 @@
       "speicher_ueber_kontingent": {
         "name": "Speicher überschritten"
       }
+    },
+    "notify": {
+      "mitteilung": {
+        "name": "Mitteilung"
+      }
+    }
+  },
+  "services": {
+    "display_message": {
+      "name": "Mitteilung anzeigen",
+      "description": "Zeigt über „Wo ist?“ eine Mitteilung auf dem Gerät an, auf Wunsch mit Ton.",
+      "fields": {
+        "message": {
+          "name": "Text",
+          "description": "Text der Mitteilung."
+        },
+        "title": {
+          "name": "Titel",
+          "description": "Überschrift der Mitteilung (Standard: Home Assistant)."
+        },
+        "sound": {
+          "name": "Ton abspielen",
+          "description": "Zusätzlich einen Ton abspielen."
+        }
+      }
     }
   }
 }

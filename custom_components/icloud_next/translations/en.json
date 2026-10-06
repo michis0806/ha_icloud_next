@@ -129,6 +129,31 @@
       "speicher_ueber_kontingent": {
         "name": "Storage exceeded"
       }
+    },
+    "notify": {
+      "mitteilung": {
+        "name": "Message"
+      }
+    }
+  },
+  "services": {
+    "display_message": {
+      "name": "Display message",
+      "description": "Displays a message on the device via Find My, optionally with a sound.",
+      "fields": {
+        "message": {
+          "name": "Message",
+          "description": "Text of the message."
+        },
+        "title": {
+          "name": "Title",
+          "description": "Heading of the message (default: Home Assistant)."
+        },
+        "sound": {
+          "name": "Play sound",
+          "description": "Also play a sound."
+        }
+      }
     }
   }
 }

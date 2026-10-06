@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0
+
+- Mitteilungen: je nachrichtenfähigem Gerät eine `notify`-Entity („Mitteilung“) für
+  `notify.send_message`, dazu die Aktion `icloud_next.display_message` mit optionalem Ton
+  (Find-My-Funktion „Mitteilung anzeigen“).
+
 ## 0.1.1
 
 - Beim Laden/Neuladen werden Geräte, die Apple nicht mehr meldet, samt Entities entfernt

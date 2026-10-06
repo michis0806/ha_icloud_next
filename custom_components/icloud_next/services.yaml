@@ -1,0 +1,22 @@
+display_message:
+  target:
+    entity:
+      integration: icloud_next
+      domain: notify
+  fields:
+    message:
+      required: true
+      example: "Bitte Ramona zurückrufen"
+      selector:
+        text:
+          multiline: true
+    title:
+      required: false
+      example: "Home Assistant"
+      selector:
+        text:
+    sound:
+      required: false
+      default: false
+      selector:
+        boolean:
