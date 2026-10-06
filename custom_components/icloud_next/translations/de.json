@@ -1,0 +1,100 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "iCloud-Konto verbinden",
+        "description": "Die Integration legt eine eigene Apple-Sitzung an, unabhängig von der offiziellen iCloud-Integration. Verlangt Apple eine Bestätigung, wählst du im nächsten Schritt, ob der Code per Push oder SMS kommt.",
+        "data": {
+          "apple_id": "Apple-ID",
+          "password": "Passwort",
+          "with_family": "Familie mitabfragen"
+        },
+        "data_description": {
+          "with_family": "Geräte, Positionen und Speicherverbrauch der Familienmitglieder aus der Familienfreigabe einbeziehen. Aus = nur dieses Konto."
+        }
+      },
+      "methode": {
+        "title": "Bestätigungscode anfordern",
+        "description": "Apple verlangt für {apple_id} eine Zwei-Faktor-Bestätigung. Wie soll der Code kommen?\n\nSMS-Nummer laut Apple: {nummer}",
+        "menu_options": {
+          "push": "Push an meine Apple-Geräte",
+          "sms": "SMS an die vertrauenswürdige Nummer"
+        }
+      },
+      "code": {
+        "title": "Bestätigungscode eingeben",
+        "description": "Der Code wurde angefordert ({weg}). Bitte den sechsstelligen Code eingeben.",
+        "data": {
+          "code": "Code"
+        }
+      },
+      "reauth_confirm": {
+        "title": "iCloud neu anmelden",
+        "description": "Apple hat die Anmeldung für {apple_id} beendet. Passwort leer lassen, um das gespeicherte weiterzuverwenden. Danach wählst du, wie der Bestätigungscode kommen soll.",
+        "data": {
+          "password": "Passwort (optional)"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Apple-ID oder Passwort falsch.",
+      "cannot_connect": "Apple ist nicht erreichbar.",
+      "invalid_code": "Der Code wurde nicht akzeptiert."
+    },
+    "abort": {
+      "already_configured": "Dieses Konto ist bereits eingerichtet.",
+      "reauth_successful": "Neu angemeldet.",
+      "security_key": "Das Konto verlangt einen Sicherheitsschlüssel; das wird nicht unterstützt.",
+      "no_2fa_method": "Apple bietet keinen nutzbaren Weg für den Bestätigungscode an.",
+      "send_failed": "Der Code konnte nicht angefordert werden. Bitte erneut versuchen."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "iCloud Next",
+        "data": {
+          "scan_interval": "Ortung alle … Minuten",
+          "with_family": "Familie mitabfragen"
+        },
+        "data_description": {
+          "scan_interval": "Jede Abfrage lässt alle Geräte aktiv orten. Kürzere Abstände kosten Akku auf den Geräten."
+        }
+      }
+    }
+  },
+  "entity": {
+    "device_tracker": {
+      "position": { "name": "Position" },
+      "person": { "name": "Position" }
+    },
+    "sensor": {
+      "akku": { "name": "Akku" },
+      "ladezustand": {
+        "name": "Ladezustand",
+        "state": {
+          "laedt": "Lädt",
+          "entlaedt": "Lädt nicht",
+          "voll": "Voll",
+          "unbekannt": "Unbekannt"
+        }
+      },
+      "ortungszeit": { "name": "Letzte Ortung" },
+      "betriebssystem": { "name": "Betriebssystem" },
+      "speicher_belegt": { "name": "Speicher belegt" },
+      "speicher_gesamt": { "name": "Speicher gesamt" },
+      "speicher_frei": { "name": "Speicher frei" },
+      "speicher_prozent": { "name": "Speicher belegt (Prozent)" },
+      "speicher_bereich": { "name": "Speicher {name}" },
+      "speicher_familie": { "name": "Speicher Familie" },
+      "speicher_mitglied": { "name": "Speicher {name}" }
+    },
+    "binary_sensor": {
+      "online": { "name": "Online" },
+      "stromsparmodus": { "name": "Stromsparmodus" },
+      "position_veraltet": { "name": "Position veraltet" },
+      "speicher_fast_voll": { "name": "Speicher fast voll" },
+      "speicher_ueber_kontingent": { "name": "Speicher überschritten" }
+    }
+  }
+}

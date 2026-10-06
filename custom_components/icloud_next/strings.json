@@ -1,0 +1,100 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect iCloud account",
+        "description": "This integration creates its own Apple session, independent of the official iCloud integration. If Apple asks for verification, you choose in the next step whether the code is sent by push or SMS.",
+        "data": {
+          "apple_id": "Apple ID",
+          "password": "Password",
+          "with_family": "Include family"
+        },
+        "data_description": {
+          "with_family": "Include devices, locations and storage usage of the Family Sharing members. Off = this account only."
+        }
+      },
+      "methode": {
+        "title": "Request verification code",
+        "description": "Apple requires two-factor verification for {apple_id}. How should the code be delivered?\n\nSMS number according to Apple: {nummer}",
+        "menu_options": {
+          "push": "Push to my Apple devices",
+          "sms": "SMS to the trusted phone number"
+        }
+      },
+      "code": {
+        "title": "Enter verification code",
+        "description": "The code has been requested ({weg}). Please enter the six-digit code.",
+        "data": {
+          "code": "Code"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Sign in to iCloud again",
+        "description": "Apple ended the session for {apple_id}. Leave the password empty to keep the stored one. Next you choose how the verification code is delivered.",
+        "data": {
+          "password": "Password (optional)"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Apple ID or password is wrong.",
+      "cannot_connect": "Apple cannot be reached.",
+      "invalid_code": "The code was not accepted."
+    },
+    "abort": {
+      "already_configured": "This account is already configured.",
+      "reauth_successful": "Signed in again.",
+      "security_key": "The account requires a security key; this is not supported.",
+      "no_2fa_method": "Apple offers no usable way to deliver the verification code.",
+      "send_failed": "The code could not be requested. Please try again."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "iCloud Next",
+        "data": {
+          "scan_interval": "Locate every … minutes",
+          "with_family": "Include family"
+        },
+        "data_description": {
+          "scan_interval": "Every poll actively locates all devices. Shorter intervals cost battery on the devices."
+        }
+      }
+    }
+  },
+  "entity": {
+    "device_tracker": {
+      "position": { "name": "Location" },
+      "person": { "name": "Location" }
+    },
+    "sensor": {
+      "akku": { "name": "Battery" },
+      "ladezustand": {
+        "name": "Charging state",
+        "state": {
+          "laedt": "Charging",
+          "entlaedt": "Not charging",
+          "voll": "Charged",
+          "unbekannt": "Unknown"
+        }
+      },
+      "ortungszeit": { "name": "Last located" },
+      "betriebssystem": { "name": "Operating system" },
+      "speicher_belegt": { "name": "Storage used" },
+      "speicher_gesamt": { "name": "Storage total" },
+      "speicher_frei": { "name": "Storage free" },
+      "speicher_prozent": { "name": "Storage used (percent)" },
+      "speicher_bereich": { "name": "Storage {name}" },
+      "speicher_familie": { "name": "Storage family" },
+      "speicher_mitglied": { "name": "Storage {name}" }
+    },
+    "binary_sensor": {
+      "online": { "name": "Online" },
+      "stromsparmodus": { "name": "Low power mode" },
+      "position_veraltet": { "name": "Location outdated" },
+      "speicher_fast_voll": { "name": "Storage almost full" },
+      "speicher_ueber_kontingent": { "name": "Storage exceeded" }
+    }
+  }
+}

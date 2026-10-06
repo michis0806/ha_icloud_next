@@ -1,0 +1,15 @@
+{
+  "domain": "icloud_next",
+  "name": "iCloud Next",
+  "codeowners": [
+    "@michis0806"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/michis0806/ha_icloud_next",
+  "integration_type": "hub",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/michis0806/ha_icloud_next/issues",
+  "loggers": ["pyicloud"],
+  "requirements": ["pyicloud>=2.6.5"],
+  "version": "0.1.0"
+}
