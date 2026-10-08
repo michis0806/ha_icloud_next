@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.2
+
+- Lehnt Apple die Sitzung zweimal hintereinander ab (HTTP 409/421), meldet sich die
+  Integration still neu an (wie pyicloud bei 450). Verlangt Apple dabei einen Code,
+  startet die Neuanmeldung unter Reparaturen, statt nach 30 Minuten nur „nicht
+  verfügbar“ zu melden. Einzelne 409 werden weiter mit den letzten Werten überbrückt.
+- AirPods & Co.: keine Sensoren Akku/Ladezustand mehr (Apple liefert über iCloud nie
+  Werte); sie verschwinden beim nächsten Laden.
+- „Ton abspielen“ bei AirPods prüft vorher frisch, ob sie verbunden sind, und meldet
+  sonst einen Fehler, statt dass still nichts passiert.
+
 ## 0.3.1
 
 - Neues Brand-Icon (Wolke mit Ortungssignal).

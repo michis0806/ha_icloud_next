@@ -29,7 +29,7 @@ async def async_setup_entry(
 class TonKnopf(GeraetEntity, ButtonEntity):
     def __init__(self, coordinator, entry, geraet_id) -> None:
         super().__init__(coordinator, entry, geraet_id, "ton_abspielen")
-        # Wie die Positionen: bei AirPods & Co. standardmäßig aus
+        # Wie die Positionen: bei AirPods & Co. standardmäßig aus (Ton nur, wenn verbunden)
         self._attr_entity_registry_enabled_default = not self._g["zubehoer"]
 
     async def async_press(self) -> None:

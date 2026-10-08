@@ -55,6 +55,32 @@ class ICloudSecurityKeyError(ICloudAuthError):
     """Das Konto verlangt einen Sicherheitsschlüssel — wird nicht unterstützt."""
 
 
+class ICloudSessionError(ICloudError):
+    """Apple lehnt die Sitzung ab (HTTP 409/421).
+
+    Kommt einzeln immer wieder vor und ist beim nächsten Abruf vorbei; erst wenn es
+    sich wiederholt, ist die Sitzung wirklich abgelaufen.
+    """
+
+
+class ICloudNotConnectedError(ICloudError):
+    """Zubehör (AirPods) ist gerade mit keinem Gerät verbunden."""
+
+
+# AppleAuthError.TWO_FACTOR_REQUIRED / LOGIN_TOKEN_EXPIRED — pyicloud erneuert die
+# Sitzung selbst nur bei 450 und reicht diese beiden als API-Fehler durch.
+_SITZUNG_CODES = {"409", "421"}
+
+
+def _fehler(err: Exception) -> ICloudError:
+    """pyicloud-Ausnahme auf die eigenen Fehlerklassen abbilden."""
+    if isinstance(err, PyiCloudAuthRequiredException):
+        return ICloudAuthError(str(err))
+    if isinstance(err, PyiCloudAPIResponseException) and str(err.code) in _SITZUNG_CODES:
+        return ICloudSessionError(str(err))
+    return ICloudError(str(err))
+
+
 class _Dienst(PyiCloudService):
     """PyiCloudService ohne automatischen 2FA-Versand."""
 
@@ -94,6 +120,26 @@ def anmelden(apple_id: str, passwort: str, ordner: str, familie: bool) -> _Diens
         raise ICloudAuthError(str(err)) from err
     except (PyiCloudException, OSError) as err:
         raise ICloudError(str(err)) from err
+
+
+def neu_anmelden(api: _Dienst) -> None:
+    """Sitzung still erneuern, wie pyicloud es selbst bei HTTP 450 tut.
+
+    Mit gültigem Vertrauens-Token klappt das ohne Code. Verlangt Apple danach doch
+    2FA, wird kein Code verschickt, sondern ICloudAuthError geworfen (→ Reauth).
+    """
+    # Die Anmeldung verwirft den Find-My-Manager; dessen Monitor-Thread vorher beenden.
+    alt = getattr(api, "_devices", None)
+    if alt is not None and getattr(alt, "stop_event", None) is not None:
+        alt.stop_event.set()
+    try:
+        api.authenticate(force_refresh=True)
+    except PyiCloudFailedLoginException as err:
+        raise ICloudAuthError(str(err)) from err
+    except (PyiCloudException, OSError) as err:
+        raise _fehler(err) from err
+    if api.requires_2fa:
+        raise ICloudAuthError("Apple verlangt eine neue Anmeldung mit 2FA")
 
 
 def braucht_2fa(api: _Dienst) -> bool:
@@ -192,10 +238,8 @@ def ortung(api: _Dienst, aktiv: bool) -> dict[str, Any]:
         info = dict(api.devices.user_info or {})
     except PyiCloudNoDevicesException:
         geraete, info = {}, {}
-    except PyiCloudAuthRequiredException as err:
-        raise ICloudAuthError(str(err)) from err
     except (PyiCloudException, OSError) as err:
-        raise ICloudError(str(err)) from err
+        raise _fehler(err) from err
     if api.requires_2fa:
         raise ICloudAuthError("Apple verlangt eine neue Anmeldung mit 2FA")
 
@@ -262,11 +306,20 @@ def _geraet(api: _Dienst, geraet_id: str) -> Any:
 def ton_abspielen(api: _Dienst, geraet_id: str) -> None:
     """Den Suchton abspielen ("Wo ist?" → Ton abspielen)."""
     try:
-        _geraet(api, geraet_id).play_sound(subject="Home Assistant")
-    except PyiCloudAuthRequiredException as err:
-        raise ICloudAuthError(str(err)) from err
+        geraet = _geraet(api, geraet_id)
+        if geraet.data.get("deviceClass") == "Accessory":
+            # AirPods spielen den Ton nur, solange sie mit einem Gerät verbunden sind;
+            # sonst nimmt Apple den Auftrag kommentarlos an und es passiert nichts.
+            # Den Status frisch holen, der Stand der letzten Ortung kann veraltet sein.
+            api.devices.refresh(locate=False)
+            geraet = _geraet(api, geraet_id)
+            if str(geraet.data.get("deviceStatus")) != "200":
+                raise ICloudNotConnectedError(
+                    "nicht verbunden – Apple spielt den Ton nur bei verbundenen AirPods ab"
+                )
+        geraet.play_sound(subject="Home Assistant")
     except (PyiCloudException, OSError) as err:
-        raise ICloudError(str(err)) from err
+        raise _fehler(err) from err
 
 
 def nachricht_senden(
@@ -275,10 +328,8 @@ def nachricht_senden(
     """Eine Mitteilung auf einem Gerät anzeigen ("Wo ist?" → Mitteilung anzeigen)."""
     try:
         _geraet(api, geraet_id).display_message(subject=titel, message=text, sounds=ton)
-    except PyiCloudAuthRequiredException as err:
-        raise ICloudAuthError(str(err)) from err
     except (PyiCloudException, OSError) as err:
-        raise ICloudError(str(err)) from err
+        raise _fehler(err) from err
 
 
 def konto(api: _Dienst, familie: bool) -> dict[str, Any]:
@@ -291,10 +342,8 @@ def konto(api: _Dienst, familie: bool) -> dict[str, Any]:
             plan = acc.summary_plan
         except PyiCloudAPIResponseException:
             plan = {}
-    except PyiCloudAuthRequiredException as err:
-        raise ICloudAuthError(str(err)) from err
     except (PyiCloudException, OSError, ValueError) as err:
-        raise ICloudError(str(err)) from err
+        raise _fehler(err) from err
 
     info = speicher.get("storageUsageInfo") or {}
     quota = speicher.get("quotaStatus") or {}

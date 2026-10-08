@@ -45,12 +45,14 @@ async def async_setup_entry(
     konto = entry.runtime_data["konto"]
     entities: list[SensorEntity] = []
 
-    for geraet_id in ortung.data["geraete"]:
-        entities += [
-            AkkuSensor(ortung, entry, geraet_id),
-            LadezustandSensor(ortung, entry, geraet_id),
-            OrtungszeitSensor(ortung, entry, geraet_id),
-        ]
+    for geraet_id, g in ortung.data["geraete"].items():
+        entities.append(OrtungszeitSensor(ortung, entry, geraet_id))
+        # Für AirPods & Co. liefert Apple über iCloud weder Akku noch Ladezustand.
+        if not g["zubehoer"]:
+            entities += [
+                AkkuSensor(ortung, entry, geraet_id),
+                LadezustandSensor(ortung, entry, geraet_id),
+            ]
 
     treffer, rest = zuordnung(ortung.data, konto.data)
     for geraet_id, kg in treffer.items():

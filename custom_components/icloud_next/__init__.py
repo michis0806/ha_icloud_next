@@ -4,8 +4,8 @@ Gegenüber der offiziellen icloud-Integration:
 - jede Abfrage stößt bei Apple eine aktive Ortung an und liest das Ergebnis
   ``LOCATE_WAIT`` Sekunden später (sonst kommt nur Apples Positions-Cache),
 - Ortungszeit, "veraltet" und Positionsquelle werden mitgeliefert,
-- eine abgelaufene Anmeldung führt in den Reauth-Flow statt in setup_error,
-  und es wird nie unaufgefordert ein 2FA-Code verschickt,
+- eine abgelaufene Anmeldung wird erst still erneuert und führt sonst in den
+  Reauth-Flow statt in setup_error; es wird nie unaufgefordert ein 2FA-Code verschickt,
 - dazu iCloud-Speicher (auch je Familienmitglied) sowie Seriennummer und
   OS-Version der Geräte des eigenen Kontos.
 
@@ -144,22 +144,43 @@ class _Basis(DataUpdateCoordinator[dict[str, Any]]):
         )
         self.dienst = dienst
         self._last_ok = 0.0
+        self._sitzungsfehler = 0
 
     async def _abrufen(self) -> dict[str, Any]:
         raise NotImplementedError
 
     async def _async_update_data(self) -> dict[str, Any]:
         try:
-            daten = await self._abrufen()
+            try:
+                daten = await self._abrufen()
+            except api.ICloudSessionError as err:
+                # Ein einzelnes 409/421 ist meist beim nächsten Abruf vorbei. Kommt es
+                # zweimal hintereinander, die Sitzung erneuern und gleich nochmal abrufen.
+                self._sitzungsfehler += 1
+                if self._sitzungsfehler < 2:
+                    raise
+                _LOGGER.info("Apple lehnt die Sitzung erneut ab (%s), melde neu an", err)
+                await self.hass.async_add_executor_job(api.neu_anmelden, self.dienst)
+                daten = await self._abrufen()
         except api.ICloudAuthError as err:
             raise ConfigEntryAuthFailed(str(err)) from err
+        except api.ICloudSessionError as err:
+            if self._sitzungsfehler >= 2:
+                # Trotz Neuanmeldung abgelehnt: Nutzer muss sich neu anmelden.
+                raise ConfigEntryAuthFailed(str(err)) from err
+            return self._karenz(err)
         except api.ICloudError as err:
-            if self.data is not None and time.monotonic() - self._last_ok < GRACE_SECONDS:
-                _LOGGER.warning("iCloud-Abruf fehlgeschlagen, nutze letzte Werte: %s", err)
-                return self.data
-            raise UpdateFailed(str(err)) from err
+            return self._karenz(err)
         self._last_ok = time.monotonic()
+        self._sitzungsfehler = 0
         return daten
+
+    def _karenz(self, err: api.ICloudError) -> dict[str, Any]:
+        """Bei Störungen bis GRACE_SECONDS die letzten Werte behalten."""
+        if self.data is not None and time.monotonic() - self._last_ok < GRACE_SECONDS:
+            _LOGGER.warning("iCloud-Abruf fehlgeschlagen, nutze letzte Werte: %s", err)
+            return self.data
+        raise UpdateFailed(str(err)) from err
 
 
 class OrtungCoordinator(_Basis):

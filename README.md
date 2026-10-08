@@ -40,11 +40,11 @@ sign in again.
 
 | For | Entities |
 |---|---|
-| Every Find My device | Location, Battery, Charging state, Online, Low power mode, Last located |
+| Every Find My device | Location, Online, Last located; Battery, Charging state and Low power mode where Apple reports them (not for AirPods) |
 | Devices of your own account | additionally Operating system; serial number and OS version in the device info |
 | Account devices without Find My (e.g. Apple TV) | Operating system |
 | Every device that can display messages (iPhone, iPad, Mac, Watch) | Message (`notify` entity) |
-| Every device that can play the Find My sound | Play sound (button; disabled by default for AirPods) |
+| Every device that can play the Find My sound | Play sound (button; disabled by default for AirPods, which only play it while connected) |
 | Every person | Location (attribute `geraet` = source device), Location outdated |
 | Account | Storage used / total / free / percent, per category (photos, backups, documents, mail, messages); with family also total and per member; Storage almost full, Storage exceeded |
 
@@ -53,7 +53,8 @@ Notes:
 - Apple only reports serial number and OS version for devices of the signed-in
   account, not for family members' devices, and masks the serial number (last five
   characters only).
-- Location entities of AirPods and other accessories are disabled by default.
+- Location entities of AirPods and other accessories are disabled by default. Apple
+  reports no battery level for them via iCloud, so they get no battery sensors.
 - New devices appear after reloading the integration.
 
 ## Installation
@@ -114,6 +115,9 @@ data:
 
 Storage and account devices are polled hourly. If Apple is temporarily unreachable,
 the last values are kept for up to 30 minutes before entities become `unavailable`.
+If Apple rejects the session twice in a row (HTTP 409/421), the integration signs in
+again silently; only if Apple then asks for a verification code does it start a
+re-authentication.
 
 ## Limitations
 
@@ -163,4 +167,8 @@ Position **je Person**, **iCloud-Speicher** sowie Seriennummer und OS-Version de
   *Integration hinzufügen* → **iCloud Next**.
 - Optionen: Ortungsintervall (Standard 15 Minuten) und Familie. Speicher und
   Kontogeräte werden stündlich abgefragt; bei Störungen bleiben die letzten Werte
-  bis zu 30 Minuten erhalten.
+  bis zu 30 Minuten erhalten. Lehnt Apple die Sitzung zweimal hintereinander ab,
+  meldet sich die Integration still neu an und startet nur dann eine Neuanmeldung,
+  wenn Apple einen Bestätigungscode verlangt.
+- AirPods: Position, Online und Letzte Ortung; Akku liefert Apple über iCloud nicht.
+  Der Ton spielt nur, solange die AirPods verbunden sind.
