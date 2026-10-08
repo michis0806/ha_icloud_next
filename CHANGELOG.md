@@ -8,8 +8,9 @@
   verfügbar“ zu melden. Einzelne 409 werden weiter mit den letzten Werten überbrückt.
 - AirPods & Co.: keine Sensoren Akku/Ladezustand mehr (Apple liefert über iCloud nie
   Werte); sie verschwinden beim nächsten Laden.
-- „Ton abspielen“ bei AirPods prüft vorher frisch, ob sie verbunden sind, und meldet
-  sonst einen Fehler, statt dass still nichts passiert.
+- Kein „Ton abspielen“ mehr für AirPods & Co.: Apple spielt den Ton nur bei
+  verbundenen AirPods ab (nie in der geschlossenen Ladeschale) und nimmt den Auftrag
+  sonst kommentarlos an. Der Knopf verschwindet beim nächsten Laden.
 
 ## 0.3.1
 

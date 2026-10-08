@@ -63,10 +63,6 @@ class ICloudSessionError(ICloudError):
     """
 
 
-class ICloudNotConnectedError(ICloudError):
-    """Zubehör (AirPods) ist gerade mit keinem Gerät verbunden."""
-
-
 # AppleAuthError.TWO_FACTOR_REQUIRED / LOGIN_TOKEN_EXPIRED — pyicloud erneuert die
 # Sitzung selbst nur bei 450 und reicht diese beiden als API-Fehler durch.
 _SITZUNG_CODES = {"409", "421"}
@@ -306,18 +302,7 @@ def _geraet(api: _Dienst, geraet_id: str) -> Any:
 def ton_abspielen(api: _Dienst, geraet_id: str) -> None:
     """Den Suchton abspielen ("Wo ist?" → Ton abspielen)."""
     try:
-        geraet = _geraet(api, geraet_id)
-        if geraet.data.get("deviceClass") == "Accessory":
-            # AirPods spielen den Ton nur, solange sie mit einem Gerät verbunden sind;
-            # sonst nimmt Apple den Auftrag kommentarlos an und es passiert nichts.
-            # Den Status frisch holen, der Stand der letzten Ortung kann veraltet sein.
-            api.devices.refresh(locate=False)
-            geraet = _geraet(api, geraet_id)
-            if str(geraet.data.get("deviceStatus")) != "200":
-                raise ICloudNotConnectedError(
-                    "nicht verbunden – Apple spielt den Ton nur bei verbundenen AirPods ab"
-                )
-        geraet.play_sound(subject="Home Assistant")
+        _geraet(api, geraet_id).play_sound(subject="Home Assistant")
     except (PyiCloudException, OSError) as err:
         raise _fehler(err) from err
 

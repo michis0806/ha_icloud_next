@@ -44,7 +44,7 @@ sign in again.
 | Devices of your own account | additionally Operating system; serial number and OS version in the device info |
 | Account devices without Find My (e.g. Apple TV) | Operating system |
 | Every device that can display messages (iPhone, iPad, Mac, Watch) | Message (`notify` entity) |
-| Every device that can play the Find My sound | Play sound (button; disabled by default for AirPods, which only play it while connected) |
+| iPhone, iPad, Mac, Apple Watch | Play sound (button with the Find My sound) |
 | Every person | Location (attribute `geraet` = source device), Location outdated |
 | Account | Storage used / total / free / percent, per category (photos, backups, documents, mail, messages); with family also total and per member; Storage almost full, Storage exceeded |
 
@@ -54,7 +54,9 @@ Notes:
   account, not for family members' devices, and masks the serial number (last five
   characters only).
 - Location entities of AirPods and other accessories are disabled by default. Apple
-  reports no battery level for them via iCloud, so they get no battery sensors.
+  reports no battery level for them via iCloud, so they get no battery sensors. They
+  also get no Play sound button: AirPods only play the sound while connected to one
+  of your devices (never in the closed case) — use the Find My app for that.
 - New devices appear after reloading the integration.
 
 ## Installation
@@ -156,7 +158,7 @@ Position **je Person**, **iCloud-Speicher** sowie Seriennummer und OS-Version de
   Reparaturmeldung — es werden nie unaufgefordert Codes verschickt.
 - **Mitteilungen:** je Gerät eine `notify`-Entity („Mitteilung“) für `notify.send_message`,
   mit Ton über die Aktion `icloud_next.display_message` („Wo ist?“ → Mitteilung anzeigen).
-- **Ton abspielen:** Knopf je Gerät für den Suchton aus „Wo ist?“.
+- **Ton abspielen:** Knopf für den Suchton aus „Wo ist?“ (iPhone, iPad, Mac, Watch).
 - **Familie wahlweise** mit abfragen (bei der Einrichtung und in den Optionen).
 - **iCloud-Speicher:** belegt, gesamt, frei, Prozent, je Bereich und je
   Familienmitglied, dazu Warnungen „fast voll“ und „überschritten“.
@@ -171,4 +173,5 @@ Position **je Person**, **iCloud-Speicher** sowie Seriennummer und OS-Version de
   meldet sich die Integration still neu an und startet nur dann eine Neuanmeldung,
   wenn Apple einen Bestätigungscode verlangt.
 - AirPods: Position, Online und Letzte Ortung; Akku liefert Apple über iCloud nicht.
-  Der Ton spielt nur, solange die AirPods verbunden sind.
+  Keinen Ton-Knopf: AirPods spielen den Ton nur, solange sie verbunden sind – dafür
+  ist die „Wo ist?“-App da.

@@ -18,7 +18,10 @@ async def async_setup_entry(
     entities = [
         TonKnopf(ortung, entry, geraet_id)
         for geraet_id, g in ortung.data["geraete"].items()
-        if g["ton_moeglich"]
+        # AirPods & Co. spielen den Ton nur, solange sie verbunden sind – in der
+        # geschlossenen Ladeschale, also wenn man sie sucht, nie. Dafür ist die
+        # "Wo ist?"-App da (Ton links/rechts, über die Ladeschale).
+        if g["ton_moeglich"] and not g["zubehoer"]
     ]
     async_add_entities(entities)
     # Für das Aufräumen in __init__.py: was bei diesem Laden angelegt wurde
@@ -29,8 +32,6 @@ async def async_setup_entry(
 class TonKnopf(GeraetEntity, ButtonEntity):
     def __init__(self, coordinator, entry, geraet_id) -> None:
         super().__init__(coordinator, entry, geraet_id, "ton_abspielen")
-        # Wie die Positionen: bei AirPods & Co. standardmäßig aus (Ton nur, wenn verbunden)
-        self._attr_entity_registry_enabled_default = not self._g["zubehoer"]
 
     async def async_press(self) -> None:
         try:
