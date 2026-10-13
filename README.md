@@ -118,8 +118,9 @@ data:
 Storage and account devices are polled hourly. If Apple is temporarily unreachable,
 the last values are kept for up to 30 minutes before entities become `unavailable`.
 If Apple rejects the session twice in a row (HTTP 409/421), the integration signs in
-again silently; only if Apple then asks for a verification code does it start a
-re-authentication.
+again silently. If Apple asks for a verification code during that, it retries a fresh
+sign-in without a code after 15, 30 and 60 minutes (Apple often asks only
+temporarily) and starts a re-authentication under Repairs only after that.
 
 ## Limitations
 
