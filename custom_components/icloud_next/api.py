@@ -118,16 +118,35 @@ def anmelden(apple_id: str, passwort: str, ordner: str, familie: bool) -> _Diens
         raise ICloudError(str(err)) from err
 
 
+def sitzung_sichern(ordner: str) -> dict[str, bytes]:
+    """Session und Cookies auf Stand halten, bevor eine Anmeldung sie überschreibt.
+
+    Eine Anmeldung, bei der Apple 2FA verlangt, schreibt eine Session ohne
+    trust_token zurück — ohne ihn hätte jeder weitere stille Versuch keine Chance.
+    """
+    return {p.name: p.read_bytes() for p in Path(ordner).iterdir() if p.is_file()}
+
+
+def sitzung_zuruecklegen(ordner: str, stand: dict[str, bytes]) -> None:
+    for name, inhalt in stand.items():
+        (Path(ordner) / name).write_bytes(inhalt)
+
+
+def beenden(api: _Dienst) -> None:
+    """Monitor-Thread des Find-My-Managers stoppen, sonst läuft er weiter."""
+    alt = getattr(api, "_devices", None)
+    if alt is not None and getattr(alt, "stop_event", None) is not None:
+        alt.stop_event.set()
+
+
 def neu_anmelden(api: _Dienst) -> None:
     """Sitzung still erneuern, wie pyicloud es selbst bei HTTP 450 tut.
 
     Mit gültigem Vertrauens-Token klappt das ohne Code. Verlangt Apple danach doch
-    2FA, wird kein Code verschickt, sondern ICloudAuthError geworfen (→ Reauth).
+    2FA, wird kein Code verschickt, sondern ICloudAuthError geworfen.
     """
     # Die Anmeldung verwirft den Find-My-Manager; dessen Monitor-Thread vorher beenden.
-    alt = getattr(api, "_devices", None)
-    if alt is not None and getattr(alt, "stop_event", None) is not None:
-        alt.stop_event.set()
+    beenden(api)
     try:
         api.authenticate(force_refresh=True)
     except PyiCloudFailedLoginException as err:
@@ -136,6 +155,14 @@ def neu_anmelden(api: _Dienst) -> None:
         raise _fehler(err) from err
     if api.requires_2fa:
         raise ICloudAuthError("Apple verlangt eine neue Anmeldung mit 2FA")
+
+
+def frisch_anmelden(apple_id: str, passwort: str, ordner: str, familie: bool) -> _Dienst:
+    """Neuer Dienst wie im Reauth-Dialog; ICloudAuthError, wenn Apple 2FA verlangt."""
+    dienst = anmelden(apple_id, passwort, ordner, familie)
+    if braucht_2fa(dienst):
+        raise ICloudAuthError("Apple verlangt eine neue Anmeldung mit 2FA")
+    return dienst
 
 
 def braucht_2fa(api: _Dienst) -> bool:

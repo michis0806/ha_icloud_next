@@ -170,8 +170,10 @@ Position **je Person**, **iCloud-Speicher** sowie Seriennummer und OS-Version de
 - Optionen: Ortungsintervall (Standard 15 Minuten) und Familie. Speicher und
   Kontogeräte werden stündlich abgefragt; bei Störungen bleiben die letzten Werte
   bis zu 30 Minuten erhalten. Lehnt Apple die Sitzung zweimal hintereinander ab,
-  meldet sich die Integration still neu an und startet nur dann eine Neuanmeldung,
-  wenn Apple einen Bestätigungscode verlangt.
+  meldet sich die Integration still neu an. Verlangt Apple dabei einen
+  Bestätigungscode, versucht sie es nach 15, 30 und 60 Minuten erneut ohne Code
+  (Apple verlangt das oft nur vorübergehend) und startet erst danach eine
+  Neuanmeldung unter Reparaturen.
 - AirPods: Position, Online und Letzte Ortung; Akku liefert Apple über iCloud nicht.
   Keinen Ton-Knopf: AirPods spielen den Ton nur, solange sie verbunden sind – dafür
   ist die „Wo ist?“-App da.

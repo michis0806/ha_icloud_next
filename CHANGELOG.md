@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.3
+
+- Verlangt Apple beim stillen Erneuern der Sitzung einen Code, startet die
+  Neuanmeldung nicht mehr sofort: Die Integration meldet sich nach 15, 30 und 60
+  Minuten erneut ohne Code an und fragt erst, wenn auch das scheitert. Apple verlangt
+  den Code oft nur vorübergehend – nachts abgelehnt, morgens ging dieselbe Anmeldung
+  durch. Vor jedem Versuch wird der letzte gute Stand der Session zurückgelegt,
+  damit ein gescheiterter Versuch den Vertrauens-Token nicht verliert.
+- Optionen laden die Integration über `OptionsFlowWithReload` neu statt über einen
+  Update-Listener (Warnung „has an update listener“, ab Home Assistant 2026.12 nötig).
+
 ## 0.3.2
 
 - Lehnt Apple die Sitzung zweimal hintereinander ab (HTTP 409/421), meldet sich die

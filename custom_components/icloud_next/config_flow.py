@@ -17,6 +17,7 @@ from homeassistant.config_entries import (
     ConfigFlow,
     ConfigFlowResult,
     OptionsFlow,
+    OptionsFlowWithReload,
 )
 from homeassistant.const import CONF_PASSWORD
 from homeassistant.core import callback
@@ -188,8 +189,8 @@ class ICloudNextConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
 
-class ICloudNextOptionsFlow(OptionsFlow):
-    """Abfrageintervall und Familie nachträglich ändern."""
+class ICloudNextOptionsFlow(OptionsFlowWithReload):
+    """Abfrageintervall und Familie nachträglich ändern (lädt danach neu)."""
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         if user_input is not None:

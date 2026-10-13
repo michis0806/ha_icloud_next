@@ -17,6 +17,11 @@ LOCATE_WAIT = 30  # Sekunden
 
 GRACE_SECONDS = 1800  # bei Störung alte Werte max. 30 Min weiterreichen
 
+# Verlangt Apple beim stillen Erneuern 2FA, ist das oft nur vorübergehend
+# (13.10.2026: um 01:16 verlangt, um 07:58 ging dieselbe Anmeldung ohne Code durch).
+# Vor dem Reauth-Flow wird deshalb nach diesen Pausen (Minuten) frisch angemeldet.
+RELOGIN_DELAYS = (15, 30, 60)
+
 # Eine Position gilt für die Personen-Zusammenfassung als frisch, wenn Apple sie
 # nicht als veraltet markiert und sie jünger als zwei Abfrageintervalle ist.
 FRESH_FACTOR = 2
