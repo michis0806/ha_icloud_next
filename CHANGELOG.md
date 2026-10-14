@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.4
+
+- Requires pyicloud 2026.10.0 (previously 2.6.5 or newer). Among other things, the
+  new version falls back to a password sign-in when a stored session token has
+  expired, reports network failures as such instead of as a failed login, keeps the
+  Find My cookie between sign-ins and accepts verification codes that Apple confirms
+  with an HTTP 409.
+- pyicloud's background refresh thread is now switched off completely instead of
+  running once a day.
+- Removed the workaround for pyicloud 2.6.
+
 ## 0.3.3
 
 - Fewer unnecessary 2FA prompts: if Apple asks for a verification code while the

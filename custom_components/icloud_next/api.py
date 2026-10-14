@@ -3,7 +3,7 @@
 Zwei Dinge macht diese Schicht anders als die offizielle icloud-Integration:
 
 1. pyicloud fordert nach der Passwortprüfung sofort selbst einen 2FA-Code an
-   (2.6.x: Push und SMS gleichzeitig, 2.7.x: Push, sonst SMS). Apple schickt bei
+   (Push, sonst SMS). Apple schickt bei
    API-Anmeldungen von sich aus nichts. Wir unterdrücken diesen automatischen
    Versand, damit der Nutzer im Config-Flow zuerst Push oder SMS wählen kann —
    und damit ein Poll mit abgelaufener Anmeldung nicht unaufgefordert Codes
@@ -12,8 +12,8 @@ Zwei Dinge macht diese Schicht anders als die offizielle icloud-Integration:
    ``ortung()`` stößt deshalb aktiv eine Ortung an; das Ergebnis holt der
    Coordinator nach ``LOCATE_WAIT`` Sekunden mit einem zweiten Abruf ab.
 
-Die 2FA-Steuerung nutzt interne pyicloud-Methoden. Sie sind in 2.6.5 und 2.7.0
-gleich benannt; fehlt eine davon in einer späteren Version, meldet
+Die 2FA-Steuerung nutzt interne pyicloud-Methoden (geprüft mit 2026.10.0);
+fehlt eine davon in einer späteren Version, meldet
 ``zustellwege()`` keine Wege statt mit einem AttributeError abzubrechen.
 """
 from __future__ import annotations
@@ -37,11 +37,6 @@ from pyicloud.exceptions import (
 from .const import METHOD_PUSH, METHOD_SMS
 
 _LOGGER = logging.getLogger(__name__)
-
-# Der Hintergrund-Thread von pyicloud würde sonst alle 5 Min ohne Ortung den
-# Cache lesen und parallel zu unseren Abrufen die Gerätedaten überschreiben.
-_MONITOR_INTERVAL = 24 * 3600
-
 
 class ICloudError(Exception):
     """Apple nicht erreichbar oder unerwartete Antwort."""
@@ -82,14 +77,11 @@ class _Dienst(PyiCloudService):
 
     _versand_erlaubt = False
 
-    def request_2fa_code(self) -> bool:  # pyicloud 2.7
+    def request_2fa_code(self) -> bool:
         if not self._versand_erlaubt:
             _LOGGER.debug("Automatischer 2FA-Versand unterdrückt")
             return False
         return super().request_2fa_code()
-
-    def _request_2fa_code(self) -> None:  # pyicloud 2.6
-        _LOGGER.debug("Automatischer 2FA-Versand unterdrückt")
 
 
 def sitzungsordner(config_dir: str, apple_id: str) -> str:
@@ -108,7 +100,9 @@ def anmelden(apple_id: str, passwort: str, ordner: str, familie: bool) -> _Diens
             passwort,
             cookie_directory=ordner,
             with_family=familie,
-            refresh_interval=_MONITOR_INTERVAL,
+            # Kein Hintergrund-Thread: er würde ohne Ortung den Cache lesen und
+            # parallel zu unseren Abrufen die Gerätedaten überschreiben.
+            refresh_interval=None,
         )
     except PyiCloudFailedLoginException as err:
         # Auch eine abgelaufene Session landet hier, wenn der Passwort-Fallback
