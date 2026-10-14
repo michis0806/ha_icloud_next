@@ -12,7 +12,7 @@ Zwei Dinge macht diese Schicht anders als die offizielle icloud-Integration:
    ``ortung()`` stößt deshalb aktiv eine Ortung an; das Ergebnis holt der
    Coordinator nach ``LOCATE_WAIT`` Sekunden mit einem zweiten Abruf ab.
 
-Die 2FA-Steuerung nutzt interne pyicloud-Methoden (geprüft mit 2026.10.0);
+Die 2FA-Steuerung nutzt interne pyicloud-Methoden (geprüft mit 2.7.0 und 2026.10.0);
 fehlt eine davon in einer späteren Version, meldet
 ``zustellwege()`` keine Wege statt mit einem AttributeError abzubrechen.
 """
@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from pyicloud import PyiCloudService
+from pyicloud.services import findmyiphone as _findmyiphone
 from pyicloud.exceptions import (
     PyiCloudAPIResponseException,
     PyiCloudAuthRequiredException,
@@ -37,6 +38,13 @@ from pyicloud.exceptions import (
 from .const import METHOD_PUSH, METHOD_SMS
 
 _LOGGER = logging.getLogger(__name__)
+
+# Der Hintergrund-Thread von pyicloud würde ohne Ortung den Cache lesen und parallel
+# zu unseren Abrufen die Gerätedaten überschreiben. Ab 2026.10 schaltet None ihn ab;
+# 2.7 nimmt für None 5 Minuten, dort bleibt es bei einmal am Tag.
+_MONITOR_INTERVAL = (
+    None if hasattr(_findmyiphone, "DEFAULT_REFRESH_INTERVAL") else 24 * 3600
+)
 
 class ICloudError(Exception):
     """Apple nicht erreichbar oder unerwartete Antwort."""
@@ -100,9 +108,7 @@ def anmelden(apple_id: str, passwort: str, ordner: str, familie: bool) -> _Diens
             passwort,
             cookie_directory=ordner,
             with_family=familie,
-            # Kein Hintergrund-Thread: er würde ohne Ortung den Cache lesen und
-            # parallel zu unseren Abrufen die Gerätedaten überschreiben.
-            refresh_interval=None,
+            refresh_interval=_MONITOR_INTERVAL,
         )
     except PyiCloudFailedLoginException as err:
         # Auch eine abgelaufene Session landet hier, wenn der Passwort-Fallback

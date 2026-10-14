@@ -126,7 +126,7 @@ temporarily) and starts a re-authentication under Repairs only after that.
 
 - Accounts that require a hardware security key (FIDO2) are not supported.
 - Two-factor control uses internal methods of
-  [pyicloud](https://github.com/timlaing/pyicloud) (requires 2026.10.0 or newer).
+  [pyicloud](https://github.com/timlaing/pyicloud) (tested with 2.7.0 and 2026.10.0).
 - Apart from messages and the Find My sound the integration is read-only: no lost mode, no erase.
 - Only the serial number is kept from Apple's device list; IMEI, UDID and payment
   methods in the same response are discarded.

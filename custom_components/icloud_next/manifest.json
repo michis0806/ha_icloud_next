@@ -13,7 +13,7 @@
     "pyicloud"
   ],
   "requirements": [
-    "pyicloud>=2026.10.0"
+    "pyicloud>=2.7.0"
   ],
   "version": "0.3.4"
 }
