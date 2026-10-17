@@ -7,6 +7,8 @@ Gegenüber der offiziellen icloud-Integration:
 - eine abgelaufene Anmeldung wird erst still erneuert, dann mehrfach zeitversetzt
   frisch angemeldet und führt erst danach in den Reauth-Flow statt in setup_error;
   es wird nie unaufgefordert ein 2FA-Code verschickt,
+- sperrt Apple das Konto, meldet sie sich nicht mehr an, sondern zeigt einen
+  Entsperr-Link und wartet auf die Neuanmeldung,
 - dazu iCloud-Speicher (auch je Familienmitglied) sowie Seriennummer und
   OS-Version der Geräte des eigenen Kontos.
 
@@ -21,7 +23,9 @@ import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
+from homeassistant.components import persistent_notification
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant
@@ -55,6 +59,34 @@ def familie_aktiv(entry: ConfigEntry) -> bool:
     return entry.options.get(CONF_WITH_FAMILY, entry.data.get(CONF_WITH_FAMILY, True))
 
 
+def _sperr_hinweis_id(entry: ConfigEntry) -> str:
+    return f"{DOMAIN}_gesperrt_{entry.entry_id}"
+
+
+def gesperrt_melden(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Hinweis mit Entsperr-Link; bis zur Neuanmeldung meldet sich nichts mehr an."""
+    apple_id = entry.data[CONF_APPLE_ID]
+    _LOGGER.warning(
+        "Apple hat das Konto %s gesperrt; keine Anmeldeversuche mehr bis zur Neuanmeldung",
+        apple_id,
+    )
+    link = (
+        "https://iforgot.apple.com/password/verify/appleid"
+        "?returnUrl=https%3A%2F%2Fwww.icloud.com%2F"
+        f"&prs_account_nm={quote(apple_id, safe='')}&unlock=true"
+    )
+    persistent_notification.async_create(
+        hass,
+        f"Apple hat das Konto **{apple_id}** aus Sicherheitsgründen gesperrt. "
+        "iCloud Next meldet sich deshalb nicht mehr an, weil jeder weitere Versuch "
+        "die Sperre verlängern kann.\n\n"
+        f"1. [Konto bei Apple entsperren]({link})\n"
+        "2. Danach unter Einstellungen → Reparaturen iCloud Next neu anmelden.",
+        title="iCloud Next: Apple-Konto gesperrt",
+        notification_id=_sperr_hinweis_id(entry),
+    )
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     apple_id = entry.data[CONF_APPLE_ID]
     familie = familie_aktiv(entry)
@@ -68,6 +100,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if await hass.async_add_executor_job(api.braucht_2fa, dienst):
             raise ConfigEntryAuthFailed("Apple verlangt eine neue Anmeldung mit 2FA")
     except api.ICloudAuthError as err:
+        if isinstance(err, api.ICloudLockedError):
+            gesperrt_melden(hass, entry)
         raise ConfigEntryAuthFailed(str(err)) from err
     except api.ICloudError as err:
         raise ConfigEntryNotReady(str(err)) from err
@@ -81,6 +115,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # gleich im Device-Registry.
     await konto.async_config_entry_first_refresh()
     await ortung.async_config_entry_first_refresh()
+    persistent_notification.async_dismiss(hass, _sperr_hinweis_id(entry))
 
     entry.runtime_data = {
         "ortung": ortung,
@@ -205,7 +240,11 @@ class Sitzung:
                 )
             except Exception as err:  # noqa: BLE001 — jeder Fehlschlag zählt als Versuch
                 letzter = self._versuch >= len(RELOGIN_DELAYS)
-                if letzter or isinstance(err, api.ICloudSecurityKeyError):
+                if isinstance(err, api.ICloudLockedError):
+                    gesperrt_melden(self.hass, self.entry)
+                if letzter or isinstance(
+                    err, (api.ICloudSecurityKeyError, api.ICloudLockedError)
+                ):
                     _LOGGER.warning(
                         "Anmeldung auch im %d. Versuch abgelehnt (%s); Neuanmeldung nötig",
                         self._versuch,
@@ -283,7 +322,18 @@ class _Basis(DataUpdateCoordinator[dict[str, Any]]):
                 daten = await self._abrufen()
         except api.ICloudSecurityKeyError as err:
             raise ConfigEntryAuthFailed(str(err)) from err
+        except api.ICloudLockedError as err:
+            # Jede weitere Anmeldung mit dem Passwort kann die Sperre verlängern: weder
+            # weiter abrufen noch still neu anmelden, sondern den Nutzer fragen.
+            self.sitzung.abbrechen()
+            self.sitzung.abgelehnt = True  # auch der andere Coordinator fragt nicht mehr
+            gesperrt_melden(self.hass, self.config_entry)
+            raise ConfigEntryAuthFailed(str(err)) from err
         except api.ICloudAuthError as err:
+            if self.data is None:
+                # Erster Abruf beim Einrichten: ohne letzte Werte würde daraus
+                # ConfigEntryNotReady, und HA versuchte die Anmeldung endlos weiter.
+                raise ConfigEntryAuthFailed(str(err)) from err
             return self._abgelehnt(err)
         except api.ICloudSessionError as err:
             if self._sitzungsfehler >= 2:

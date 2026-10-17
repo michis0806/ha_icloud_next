@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.5
+
+- Locked Apple Account: when Apple locks the account for security reasons, the
+  integration stops signing in right away – no more polling, no silent re-login,
+  no retries. Every further password sign-in can extend the lock. A notification
+  links straight to Apple's unlock page, and a re-authentication starts under
+  Repairs. Detection needs pyicloud 2026.10; with 2.7.0 a lock is handled like a
+  rejected password.
+- A password that Apple rejects while polling now counts as a failed sign-in
+  instead of a temporary outage. pyicloud signs in with the password on its own
+  when the session has expired; that rejection used to be swallowed, so every poll
+  tried the password again.
+- If the sign-in is rejected during setup, Home Assistant now asks for a
+  re-authentication instead of retrying the setup in the background every few
+  minutes with the same password.
+
 ## 0.3.4
 
 - Supports pyicloud 2026.10.0 (minimum is now 2.7.0, which Home Assistant 2026.10

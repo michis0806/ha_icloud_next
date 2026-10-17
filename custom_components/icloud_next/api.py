@@ -35,6 +35,13 @@ from pyicloud.exceptions import (
     PyiCloudNoDevicesException,
 )
 
+try:
+    from pyicloud.exceptions import PyiCloudAccountLockedException
+except ImportError:  # erst ab pyicloud 2026.10; 2.7 meldet die Sperre als Login-Fehler
+    _GESPERRT: tuple[type[Exception], ...] = ()
+else:
+    _GESPERRT = (PyiCloudAccountLockedException,)
+
 from .const import METHOD_PUSH, METHOD_SMS
 
 _LOGGER = logging.getLogger(__name__)
@@ -58,6 +65,10 @@ class ICloudSecurityKeyError(ICloudAuthError):
     """Das Konto verlangt einen Sicherheitsschlüssel — wird nicht unterstützt."""
 
 
+class ICloudLockedError(ICloudAuthError):
+    """Apple hat das Konto gesperrt; jede weitere Anmeldung kann die Sperre verlängern."""
+
+
 class ICloudSessionError(ICloudError):
     """Apple lehnt die Sitzung ab (HTTP 409/421).
 
@@ -71,8 +82,18 @@ class ICloudSessionError(ICloudError):
 _SITZUNG_CODES = {"409", "421"}
 
 
+def _anmeldefehler(err: PyiCloudFailedLoginException) -> ICloudAuthError:
+    if isinstance(err, _GESPERRT):
+        return ICloudLockedError(str(err))
+    return ICloudAuthError(str(err))
+
+
 def _fehler(err: Exception) -> ICloudError:
     """pyicloud-Ausnahme auf die eigenen Fehlerklassen abbilden."""
+    if isinstance(err, PyiCloudFailedLoginException):
+        # pyicloud meldet sich bei abgelaufener Sitzung mitten im Abruf mit dem
+        # Passwort neu an. Scheitert das, ist es ein Anmeldefehler, keine Störung.
+        return _anmeldefehler(err)
     if isinstance(err, PyiCloudAuthRequiredException):
         return ICloudAuthError(str(err))
     if isinstance(err, PyiCloudAPIResponseException) and str(err.code) in _SITZUNG_CODES:
@@ -113,7 +134,7 @@ def anmelden(apple_id: str, passwort: str, ordner: str, familie: bool) -> _Diens
     except PyiCloudFailedLoginException as err:
         # Auch eine abgelaufene Session landet hier, wenn der Passwort-Fallback
         # scheitert — beides heißt für den Nutzer: neu anmelden.
-        raise ICloudAuthError(str(err)) from err
+        raise _anmeldefehler(err) from err
     except (PyiCloudException, OSError) as err:
         raise ICloudError(str(err)) from err
 
@@ -150,7 +171,7 @@ def neu_anmelden(api: _Dienst) -> None:
     try:
         api.authenticate(force_refresh=True)
     except PyiCloudFailedLoginException as err:
-        raise ICloudAuthError(str(err)) from err
+        raise _anmeldefehler(err) from err
     except (PyiCloudException, OSError) as err:
         raise _fehler(err) from err
     if api.requires_2fa:
