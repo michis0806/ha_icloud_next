@@ -65,6 +65,10 @@ class ICloudSecurityKeyError(ICloudAuthError):
     """Das Konto verlangt einen Sicherheitsschlüssel — wird nicht unterstützt."""
 
 
+class ICloudPasswordError(ICloudAuthError):
+    """Apple lehnt die Anmeldung mit dem Passwort ab."""
+
+
 class ICloudLockedError(ICloudAuthError):
     """Apple hat das Konto gesperrt; jede weitere Anmeldung kann die Sperre verlängern."""
 
@@ -85,7 +89,7 @@ _SITZUNG_CODES = {"409", "421"}
 def _anmeldefehler(err: PyiCloudFailedLoginException) -> ICloudAuthError:
     if isinstance(err, _GESPERRT):
         return ICloudLockedError(str(err))
-    return ICloudAuthError(str(err))
+    return ICloudPasswordError(str(err))
 
 
 def _fehler(err: Exception) -> ICloudError:

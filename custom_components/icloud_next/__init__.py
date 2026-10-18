@@ -45,6 +45,7 @@ from .const import (
     FRESH_FACTOR,
     GRACE_SECONDS,
     LOCATE_WAIT,
+    PASSWORD_RETRY_DELAYS,
     PERSON_DEVICE_PRIORITY,
     RELOGIN_DELAYS,
 )
@@ -169,7 +170,8 @@ class Sitzung:
     oft nur vorübergehend. Statt sofort den Reauth-Flow zu starten, wird nach den
     Pausen in RELOGIN_DELAYS frisch angemeldet — genau das, was der Reauth-Dialog
     mit gespeichertem Passwort tut. Erst wenn auch der letzte Versuch scheitert,
-    muss der Nutzer ran. Vor jedem Versuch wird der letzte gute Stand der Session
+    muss der Nutzer ran. Lehnt Apple das Passwort ab, gibt es nur einen Versuch
+    nach PASSWORD_RETRY_DELAYS, bei gesperrtem Konto keinen. Vor jedem Versuch wird der letzte gute Stand der Session
     zurückgelegt, damit ein gescheiterter Versuch den trust_token nicht vernichtet.
     """
 
@@ -183,7 +185,9 @@ class Sitzung:
         self._ordner = ordner
         self._familie = familie
         self._stand: dict[str, bytes] | None = None
-        self._versuch = 0
+        self._plan: tuple[int, ...] = RELOGIN_DELAYS
+        self._versuch = 0  # Index im aktuellen Plan
+        self._anzahl = 0  # Versuche insgesamt, fürs Log
         self._timer: CALLBACK_TYPE | None = None
         self.abgelehnt = False
         self.lock = asyncio.Lock()
@@ -203,18 +207,25 @@ class Sitzung:
         if self.abgelehnt:
             return
         self.abgelehnt = True
-        self._versuch = 0
+        self._anzahl = 0
+        self._plan_waehlen(err)
         _LOGGER.warning(
-            "Apple lehnt die Anmeldung ab (%s); melde mich nach %s Minuten ohne Code "
-            "neu an, erst danach ist eine Neuanmeldung durch den Nutzer nötig",
+            "Apple lehnt die Anmeldung ab (%s); melde mich nach %s Minuten erneut an, "
+            "erst danach ist eine Neuanmeldung durch den Nutzer nötig",
             err,
-            "/".join(str(m) for m in RELOGIN_DELAYS),
+            "/".join(str(m) for m in self._plan),
         )
         self._planen()
 
+    def _plan_waehlen(self, err: Exception) -> None:
+        self._plan = (
+            PASSWORD_RETRY_DELAYS if isinstance(err, api.ICloudPasswordError) else RELOGIN_DELAYS
+        )
+        self._versuch = 0
+
     def _planen(self) -> None:
         self._timer = async_call_later(
-            self.hass, RELOGIN_DELAYS[self._versuch] * 60, self._versuchen
+            self.hass, self._plan[self._versuch] * 60, self._versuchen
         )
 
     def abbrechen(self) -> None:
@@ -225,6 +236,7 @@ class Sitzung:
     async def _versuchen(self, _jetzt: Any) -> None:
         self._timer = None
         self._versuch += 1
+        self._anzahl += 1
         async with self.lock:
             try:
                 if self._stand is not None:
@@ -239,7 +251,14 @@ class Sitzung:
                     self._familie,
                 )
             except Exception as err:  # noqa: BLE001 — jeder Fehlschlag zählt als Versuch
-                letzter = self._versuch >= len(RELOGIN_DELAYS)
+                if (
+                    isinstance(err, api.ICloudPasswordError)
+                    and self._plan is not PASSWORD_RETRY_DELAYS
+                ):
+                    # Bisher verlangte Apple nur 2FA, jetzt lehnt es das Passwort ab:
+                    # nur noch der eine Versuch für abgelehnte Passwörter.
+                    self._plan_waehlen(err)
+                letzter = self._versuch >= len(self._plan)
                 if isinstance(err, api.ICloudLockedError):
                     gesperrt_melden(self.hass, self.entry)
                 if letzter or isinstance(
@@ -247,7 +266,7 @@ class Sitzung:
                 ):
                     _LOGGER.warning(
                         "Anmeldung auch im %d. Versuch abgelehnt (%s); Neuanmeldung nötig",
-                        self._versuch,
+                        self._anzahl,
                         err,
                     )
                     if self._stand is not None:
@@ -258,9 +277,9 @@ class Sitzung:
                     return
                 _LOGGER.info(
                     "Anmeldeversuch %d abgelehnt (%s), nächster in %d Minuten",
-                    self._versuch,
+                    self._anzahl,
                     err,
-                    RELOGIN_DELAYS[self._versuch],
+                    self._plan[self._versuch],
                 )
                 self._planen()
                 return
@@ -268,7 +287,7 @@ class Sitzung:
             self.dienst = neu
             self.abgelehnt = False
             self._stand = None
-        _LOGGER.warning("Anmeldung im %d. Versuch ohne Code wiederhergestellt", self._versuch)
+        _LOGGER.warning("Anmeldung im %d. Versuch wiederhergestellt", self._anzahl)
         for coordinator in self.coordinators:
             coordinator.zuruecksetzen()
             await coordinator.async_refresh()

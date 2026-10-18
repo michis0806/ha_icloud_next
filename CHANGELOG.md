@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.6
+
+- A password that Apple rejects is retried only once, after 15 minutes, before
+  re-authentication starts under Repairs – instead of three times after 15, 30 and
+  60 minutes like a verification-code request. Every failed password sign-in can
+  lead to an account lock. If Apple first asks for a code and then rejects the
+  password during the retries, the remaining attempts are cut to that one retry.
+  A locked account is still never retried.
+
 ## 0.3.5
 
 - Locked Apple Account: when Apple locks the account for security reasons, the

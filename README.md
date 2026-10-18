@@ -121,6 +121,8 @@ If Apple rejects the session twice in a row (HTTP 409/421), the integration sign
 again silently. If Apple asks for a verification code during that, it retries a fresh
 sign-in without a code after 15, 30 and 60 minutes (Apple often asks only
 temporarily) and starts a re-authentication under Repairs only after that.
+If Apple rejects the password, it tries exactly once more after 15 minutes (every
+failed password sign-in can lead to an account lock) and then asks you.
 If Apple locks the account, the integration stops signing in immediately, shows a
 notification with a link to Apple's unlock page and waits for the re-authentication
 (needs pyicloud 2026.10).
