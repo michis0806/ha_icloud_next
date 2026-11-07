@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.1 — 2026-11-08
+
+- Configure the backup destination path relative to iCloud Drive in integration
+  options, including nested folders. The existing folder remains the default.
+- Path changes preserve the agent identity and existing backup files; archives
+  are not moved automatically. Only empty or agent-owned destinations are used.
+
 ## 0.4.0 — 2026-11-08
 
 - Native Home Assistant backup storage in iCloud Drive using the existing iCloud

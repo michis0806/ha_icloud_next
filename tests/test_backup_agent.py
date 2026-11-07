@@ -26,6 +26,7 @@ from icloud_next.backup_transport import (
     BackupStoreAuthenticationError,
     BackupStoreIntegrityError,
     BackupStoreNotFound,
+    BackupStorePathError,
 )
 from icloud_next.const import CONF_APPLE_ID, DATA_BACKUP_AGENT_LISTENERS, DOMAIN
 
@@ -61,6 +62,7 @@ class FakeEntry:
 
     def __init__(self, config_dir: Path) -> None:
         self.data = {CONF_APPLE_ID: APPLE_ID}
+        self.options = {}
         self.entry_id = "entry-id-is-not-the-agent-id"
         self.title = "iCloud Next test account"
         self.runtime_data = {"sitzung": FakeSession(config_dir)}
@@ -494,3 +496,33 @@ async def test_full_temporary_storage_is_reported_before_upload(
     assert error.value.translation_key == "insufficient_space"
     assert backend.calls == []
     assert not agent._spools
+
+
+@pytest.mark.asyncio
+async def test_configured_path_reaches_store_without_changing_agent_id(
+    hass: HomeAssistant, tmp_path: Path, backend: FakeBackend
+) -> None:
+    entry = FakeEntry(tmp_path)
+    original = backup.ICloudNextBackupAgent(hass, entry)
+    await original.async_list_backups()
+    assert backend.constructor_args[-1]["backup_path"] == (
+        f"Home Assistant Backups - {original.unique_id}"
+    )
+    entry.options = {"backup_path": "Backups/Home Assistant"}
+    changed = backup.ICloudNextBackupAgent(hass, entry)
+    await changed.async_list_backups()
+    assert backend.constructor_args[-1]["backup_path"] == "Backups/Home Assistant"
+    assert changed.agent_id == original.agent_id
+    assert backend.constructor_args[-1]["namespace"] == original.unique_id
+
+
+@pytest.mark.asyncio
+async def test_unusable_destination_has_specific_error(
+    hass: HomeAssistant, tmp_path: Path, backend: FakeBackend
+) -> None:
+    agent, entry = make_agent(hass, tmp_path)
+    backend.error = BackupStorePathError("Foreign folder")
+    with pytest.raises(BackupAgentError) as error:
+        await agent.async_list_backups()
+    assert error.value.translation_key == "invalid_backup_destination"
+    assert not entry.runtime_data["sitzung"].abgelehnt

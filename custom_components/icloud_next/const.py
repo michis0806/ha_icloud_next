@@ -4,6 +4,7 @@ DOMAIN = "icloud_next"
 DATA_BACKUP_AGENT_LISTENERS = f"{DOMAIN}_backup_agent_listeners"
 
 CONF_APPLE_ID = "apple_id"
+CONF_BACKUP_PATH = "backup_path"
 CONF_WITH_FAMILY = "with_family"
 CONF_SCAN_INTERVAL = "scan_interval"
 

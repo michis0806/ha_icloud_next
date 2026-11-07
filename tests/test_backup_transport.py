@@ -96,6 +96,9 @@ class FakeNode:
         self.deleted = True
         self._parent._children.remove(self)
 
+    def mkdir(self, name):
+        return self.add(FakeNode(name, f"FOLDER::{len(self._children)}", "folder"))
+
     def add(self, child):
         child._parent = self
         self._children.append(child)
@@ -109,7 +112,7 @@ class FakeRoot(FakeNode):
             self.add(child)
 
     def mkdir(self, name):
-        self.add(FakeNode(name, f"FOLDER::{len(self._children)}", "folder"))
+        return super().mkdir(name)
 
 
 class FakeDrive:
@@ -118,14 +121,14 @@ class FakeDrive:
         self.on_progress = None
 
 
-def make_store(folder=None, root=None, cancel=None):
-    store = object.__new__(transport.ICloudBackupStore)
-    store.apple_id = "test@example.invalid"
-    store.session_files = {}
-    store.namespace = "ha-test"
-    store.cancel = cancel or threading.Event()
-    store._temporary = None
-    store._client = None
+def make_store(folder=None, root=None, cancel=None, backup_path=None):
+    store = transport.ICloudBackupStore(
+        "test@example.invalid",
+        {},
+        "ha-test",
+        cancel or threading.Event(),
+        backup_path=backup_path,
+    )
     store._drive = FakeDrive(root or FakeRoot())
     store._folder_node = folder
     return store
@@ -177,6 +180,94 @@ def test_foreign_folder_is_never_claimed_or_modified():
 
     assert [node.name for node in foreign.get_children()] == ["user-file.txt"]
     assert foreign.get_children()[0].content == b"keep me"
+
+
+def test_nested_backup_path_creates_missing_parents_and_managed_leaf(tmp_path):
+    parent = FakeNode("Archive", "FOLDER::archive", "folder")
+    user_file = parent.add(FakeNode("notes.txt", "FILE::notes", content=b"keep"))
+    root = FakeRoot([parent])
+    store = make_store(root=root, backup_path="Archive/HA/Nightly")
+    source = tmp_path / "backup.tar"
+    source.write_bytes(b"payload")
+
+    store.upload_backup(
+        backup_metadata(size=len(b"payload")), source, lambda _size: None
+    )
+
+    [nested] = parent.get_children()[1:]
+    assert nested.name == "HA"
+    [leaf] = nested.get_children()
+    assert leaf.name == "Nightly"
+    assert next(child.name for child in leaf.get_children()) == transport.MARKER_NAME
+    assert user_file.content == b"keep"
+    assert not parent.deleted
+
+
+@pytest.mark.parametrize("existing_leaf", [False, True])
+def test_listing_absent_or_empty_path_is_read_only(existing_leaf):
+    root = FakeRoot()
+    if existing_leaf:
+        archive = root.mkdir("Archive")
+        target = archive.mkdir("Nightly")
+    store = make_store(root=root, backup_path="Archive/Nightly")
+
+    assert store.list_backups() == []
+
+    if existing_leaf:
+        assert target.get_children() == []
+        assert [node.name for node in root.get_children()] == ["Archive"]
+    else:
+        assert root.get_children() == []
+
+
+def test_failed_marker_upload_does_not_delete_preexisting_empty_leaf():
+    root = FakeRoot()
+    archive = root.mkdir("Archive")
+    target = archive.mkdir("Nightly")
+    store = make_store(root=root, backup_path="Archive/Nightly")
+
+    def fail_marker_upload(folder, name, data):
+        assert folder is target
+        assert name == transport.MARKER_NAME
+        raise OSError("offline")
+
+    store._upload_json = fail_marker_upload
+
+    with pytest.raises(OSError, match="offline"):
+        store._folder(create=True)
+
+    assert archive.get_children() == [target]
+    assert target.get_children() == []
+    assert not archive.deleted
+    assert not target.deleted
+
+
+@pytest.mark.parametrize("marker_namespace", ["ha-foreign", "ha-other-account"])
+def test_path_refuses_foreign_or_other_account_marker(marker_namespace):
+    root = FakeRoot()
+    archive = root.mkdir("Archive")
+    target = archive.mkdir("Nightly")
+    marker = {"format": 1, "namespace": marker_namespace}
+    target.add(
+        FakeNode(
+            transport.MARKER_NAME,
+            "FILE::foreign-marker",
+            content=json.dumps(marker).encode(),
+        )
+    )
+    user_file = target.add(FakeNode("keep.txt", "FILE::keep", content=b"keep"))
+    store = make_store(root=root, backup_path="Archive/Nightly")
+
+    with pytest.raises(transport.BackupStoreError, match="not owned"):
+        store._folder(create=True)
+
+    assert [node.name for node in target.get_children()] == [
+        transport.MARKER_NAME,
+        "keep.txt",
+    ]
+    assert user_file.content == b"keep"
+    assert not archive.deleted
+    assert not target.deleted
 
 
 def test_failed_new_folder_marker_upload_removes_empty_folder_for_retry():

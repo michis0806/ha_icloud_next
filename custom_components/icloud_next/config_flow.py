@@ -11,7 +11,6 @@ from collections.abc import Mapping
 from typing import Any
 
 import voluptuous as vol
-
 from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
@@ -23,8 +22,10 @@ from homeassistant.const import CONF_PASSWORD
 from homeassistant.core import callback
 
 from . import api, familie_aktiv
+from .backup_path import default_backup_path, normalize_backup_path
 from .const import (
     CONF_APPLE_ID,
+    CONF_BACKUP_PATH,
     CONF_SCAN_INTERVAL,
     CONF_WITH_FAMILY,
     DEFAULT_SCAN_INTERVAL,
@@ -190,12 +191,20 @@ class ICloudNextConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class ICloudNextOptionsFlow(OptionsFlowWithReload):
-    """Abfrageintervall und Familie nachträglich ändern (lädt danach neu)."""
+    """Ortung, Familie und Backup-Pfad ändern (lädt danach neu)."""
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        if user_input is not None:
-            return self.async_create_entry(data=user_input)
         entry = self.config_entry
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            try:
+                path = normalize_backup_path(user_input.get(CONF_BACKUP_PATH, ""))
+            except (TypeError, ValueError):
+                errors[CONF_BACKUP_PATH] = "invalid_backup_path"
+            else:
+                return self.async_create_entry(
+                    data={**entry.options, **user_input, CONF_BACKUP_PATH: path}
+                )
         schema = vol.Schema(
             {
                 vol.Required(
@@ -203,6 +212,16 @@ class ICloudNextOptionsFlow(OptionsFlowWithReload):
                     default=entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
                 ): vol.All(vol.Coerce(int), vol.Range(min=MIN_SCAN_INTERVAL, max=MAX_SCAN_INTERVAL)),
                 vol.Required(CONF_WITH_FAMILY, default=familie_aktiv(entry)): bool,
+                vol.Required(
+                    CONF_BACKUP_PATH,
+                    default=entry.options.get(
+                        CONF_BACKUP_PATH, default_backup_path(entry.data[CONF_APPLE_ID])
+                    ),
+                ): str,
             }
         )
-        return self.async_show_form(step_id="init", data_schema=schema)
+        return self.async_show_form(
+            step_id="init",
+            data_schema=self.add_suggested_values_to_schema(schema, user_input),
+            errors=errors,
+        )

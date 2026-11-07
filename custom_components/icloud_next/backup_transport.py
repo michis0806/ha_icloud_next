@@ -39,6 +39,8 @@ from requests_toolbelt.multipart.encoder import (
     MultipartEncoderMonitor,
 )
 
+from .backup_path import normalize_backup_path
+
 _LOGGER = logging.getLogger(__name__)
 CHUNK_SIZE = 1024 * 1024
 MAX_METADATA_SIZE = 1024 * 1024
@@ -49,6 +51,10 @@ NAMESPACE_RE = re.compile(r"[a-zA-Z0-9_-]{1,64}")
 
 class BackupStoreError(Exception):
     """An operation could not be completed; exception text contains no secrets."""
+
+
+class BackupStorePathError(BackupStoreError):
+    """The configured destination is invalid or not owned by this agent."""
 
 
 class BackupStoreAuthenticationError(BackupStoreError):
@@ -255,12 +261,21 @@ class ICloudBackupStore:
         session_files: dict[str, bytes],
         namespace: str,
         cancel: Event,
+        backup_path: str | None = None,
     ):
         if not NAMESPACE_RE.fullmatch(namespace):
             raise BackupStoreError("Invalid backup namespace")
         self.apple_id = apple_id
         self.session_files = session_files
         self.namespace = namespace
+        try:
+            self.backup_path = normalize_backup_path(
+                backup_path
+                if backup_path is not None
+                else f"Home Assistant Backups - {namespace}"
+            )
+        except (TypeError, ValueError) as err:
+            raise BackupStorePathError("Invalid backup path") from err
         self.cancel = cancel
         self._temporary = None
         self._client = None
@@ -356,31 +371,36 @@ class ICloudBackupStore:
     def _folder(self, create=False):
         if self._folder_node is not None:
             return self._folder_node
-        name = f"Home Assistant Backups - {self.namespace}"
-        root = self._drive.root
-        matches = [node for node in self._children(root) if node.name == name]
-        if len(matches) > 1:
-            raise BackupStoreError("The backup folder is not unique")
+        parent = self._drive.root
         created = False
-        if not matches:
-            if not create:
-                return None
-            root.mkdir(name)
-            created = True
-            matches = [node for node in self._children(root) if node.name == name]
-        if len(matches) != 1 or matches[0].type != "folder":
-            raise BackupStoreError("The backup folder is unavailable")
-        folder = matches[0]
-        markers = [node for node in self._children(folder) if node.name == MARKER_NAME]
+        parts = self.backup_path.split("/")
+        for index, name in enumerate(parts):
+            matches = [node for node in self._children(parent) if node.name == name]
+            if len(matches) > 1:
+                raise BackupStorePathError("The backup path is not unique")
+            created = False
+            if not matches:
+                if not create:
+                    return None
+                parent.mkdir(name)
+                created = True
+                matches = [node for node in self._children(parent) if node.name == name]
+            if len(matches) != 1 or matches[0].type != "folder":
+                raise BackupStorePathError("The backup path is unavailable")
+            folder = matches[0]
+            if index < len(parts) - 1:
+                parent = folder
+        children = self._children(folder)
+        markers = [node for node in children if node.name == MARKER_NAME]
         marker = {"format": 1, "namespace": self.namespace}
-        if created:
+        if created or (create and not children):
             try:
                 self._upload_json(folder, MARKER_NAME, marker)
             except BaseException:
                 saved = self.cancel.is_set()
                 self.cancel.clear()
                 try:
-                    if not self._children(folder):
+                    if created and not self._children(folder):
                         folder.delete()
                 except (PyiCloudException, RequestException, OSError, BackupStoreError):
                     _LOGGER.warning("Could not remove an empty iCloud backup folder")
@@ -388,8 +408,10 @@ class ICloudBackupStore:
                     if saved:
                         self.cancel.set()
                 raise
+        elif not children:
+            return None
         elif len(markers) != 1 or self._read_json(markers[0]) != marker:
-            raise BackupStoreError("The folder is not owned by this backup agent")
+            raise BackupStorePathError("The folder is not owned by this backup agent")
         self._folder_node = folder
         return folder
 

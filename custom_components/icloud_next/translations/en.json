@@ -55,12 +55,17 @@
         "title": "iCloud Next",
         "data": {
           "scan_interval": "Locate interval (minutes)",
-          "with_family": "Include family"
+          "with_family": "Include family",
+          "backup_path": "Backup path in iCloud Drive"
         },
         "data_description": {
-          "scan_interval": "Time between two active locate requests. Every poll actively locates all devices; shorter intervals cost battery on the devices."
+          "scan_interval": "Time between two active locate requests. Every poll actively locates all devices; shorter intervals cost battery on the devices.",
+          "backup_path": "Path relative to iCloud Drive, for example Backups/Home Assistant. Missing folders are created on the first upload. The destination must be empty or already belong to this backup agent. Changing the path leaves existing backups in their original folder; they are not moved automatically."
         }
       }
+    },
+    "error": {
+      "invalid_backup_path": "Enter a folder path. Empty paths, . and .., empty intermediate names, backslashes and control characters are not allowed."
     }
   },
   "entity": {
@@ -176,6 +181,9 @@
     },
     "insufficient_space": {
       "message": "There is not enough local storage for the temporary backup file."
+    },
+    "invalid_backup_destination": {
+      "message": "The configured backup path is unavailable or does not belong to this backup agent. Choose an empty destination or this account's existing backup folder."
     }
   }
 }

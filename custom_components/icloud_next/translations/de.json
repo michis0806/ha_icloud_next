@@ -55,12 +55,17 @@
         "title": "iCloud Next",
         "data": {
           "scan_interval": "Ortungsintervall (Minuten)",
-          "with_family": "Familie mitabfragen"
+          "with_family": "Familie mitabfragen",
+          "backup_path": "Backup-Pfad in iCloud Drive"
         },
         "data_description": {
-          "scan_interval": "Abstand zwischen zwei aktiven Ortungen. Jede Abfrage lässt alle Geräte aktiv orten, kürzere Abstände kosten Akku auf den Geräten."
+          "scan_interval": "Abstand zwischen zwei aktiven Ortungen. Jede Abfrage lässt alle Geräte aktiv orten, kürzere Abstände kosten Akku auf den Geräten.",
+          "backup_path": "Pfad relativ zu iCloud Drive, z. B. Backups/Home Assistant. Fehlende Ordner werden beim ersten Upload angelegt. Der Zielordner muss leer sein oder bereits diesem Backup-Ziel gehören. Bei einem Pfadwechsel bleiben vorhandene Backups im bisherigen Ordner; sie werden nicht automatisch verschoben."
         }
       }
+    },
+    "error": {
+      "invalid_backup_path": "Gib einen Ordnerpfad an. Leere Pfade, . und .., leere Zwischenordner, Rückwärtsschrägstriche und Steuerzeichen sind nicht erlaubt."
     }
   },
   "entity": {
@@ -176,6 +181,9 @@
     },
     "insufficient_space": {
       "message": "Für die temporäre Backup-Datei ist nicht genügend lokaler Speicherplatz frei."
+    },
+    "invalid_backup_destination": {
+      "message": "Der konfigurierte Backup-Pfad ist nicht verfügbar oder gehört nicht zu diesem Backup-Ziel. Wähle einen leeren Zielordner oder den bisherigen Backup-Ordner dieses Kontos."
     }
   }
 }

@@ -227,3 +227,21 @@ verschickt selbst keine 2FA-Codes.
 Der Übertragungsweg wurde mit 1, 64 und 512 MiB sowie einem neuen Client aus der
 gespeicherten Sitzung getestet. Eine vollständige Systemwiederherstellung und
 Konten mit erweitertem Datenschutz müssen noch gesondert geprüft werden.
+
+### Backup destination path / Backup-Pfad
+
+Under the iCloud Next integration's options, **Backup path in iCloud Drive**
+selects the destination folder, for example `Backups/Home Assistant`. Paths are
+relative to iCloud Drive. Missing folders are created on the first upload; the
+destination must be empty or already belong to this account's backup agent.
+The default preserves the original account-specific backup folder. Changing the
+path does not move existing backups. Select the previous path in the integration
+options to access them again. The backup agent ID and automatic backup selection
+remain stable.
+
+In den Optionen von iCloud Next wählt **Backup-Pfad in iCloud Drive** den Zielordner,
+z. B. `Backups/Home Assistant`. Fehlende Ordner werden beim ersten Upload angelegt.
+Der Zielordner muss leer sein oder bereits diesem Konto gehören. Der voreingestellte
+Pfad erhält den bisherigen Backup-Ordner. Ein Pfadwechsel verschiebt keine Backups:
+Mit dem bisherigen Pfad sind sie wieder erreichbar. Die ID des Backup-Ziels und
+seine Auswahl für automatische Backups bleiben gleich.

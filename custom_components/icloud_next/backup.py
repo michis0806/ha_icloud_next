@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import errno
-import hashlib
 import logging
 import os
 import shutil
@@ -29,15 +28,17 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.util.async_iterator import async_close_iterator
 
 from . import api, gesperrt_melden
+from .backup_path import backup_namespace, default_backup_path
 from .backup_transport import (
     BackupStoreAuthenticationError,
     BackupStoreError,
     BackupStoreIntegrityError,
     BackupStoreLockedError,
     BackupStoreNotFound,
+    BackupStorePathError,
     ICloudBackupStore,
 )
-from .const import CONF_APPLE_ID, DATA_BACKUP_AGENT_LISTENERS, DOMAIN
+from .const import CONF_APPLE_ID, CONF_BACKUP_PATH, DATA_BACKUP_AGENT_LISTENERS, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 _CHUNK_SIZE = 1024 * 1024
@@ -94,9 +95,10 @@ class ICloudNextBackupAgent(BackupAgent):
         self._entry = entry
         self._session = entry.runtime_data["sitzung"]
         self.name = entry.title
-        self._namespace = hashlib.sha256(
-            entry.data[CONF_APPLE_ID].strip().lower().encode()
-        ).hexdigest()[:24]
+        self._namespace = backup_namespace(entry.data[CONF_APPLE_ID])
+        self._backup_path = entry.options.get(
+            CONF_BACKUP_PATH, default_backup_path(entry.data[CONF_APPLE_ID])
+        )
         self.unique_id = self._namespace
         self._operation_lock = asyncio.Lock()
         self._cancel_events: set[threading.Event] = set()
@@ -294,6 +296,8 @@ class ICloudNextBackupAgent(BackupAgent):
             ) from err
         except BackupStoreIntegrityError as err:
             raise self._agent_error("integrity_failed") from err
+        except BackupStorePathError as err:
+            raise self._agent_error("invalid_backup_destination") from err
         except BackupStoreError as err:
             raise self._agent_error("operation_failed") from err
         except OSError as err:
@@ -316,6 +320,7 @@ class ICloudNextBackupAgent(BackupAgent):
             session_files=session_files,
             namespace=self._namespace,
             cancel=cancel,
+            backup_path=self._backup_path,
         ) as store:
             return getattr(store, operation)(*args)
 
