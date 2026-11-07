@@ -160,5 +160,22 @@
         }
       }
     }
+  },
+  "exceptions": {
+    "auth_required": {
+      "message": "Die iCloud-Anmeldung muss erneuert werden. Bitte melde iCloud Next erneut an."
+    },
+    "account_locked": {
+      "message": "Apple hat das Konto gesperrt. Bitte entsperre es vor der Neuanmeldung."
+    },
+    "operation_failed": {
+      "message": "Der Zugriff auf das iCloud-Backup ist fehlgeschlagen. Bitte prüfe die Verbindung und den Zugriff auf iCloud Drive."
+    },
+    "integrity_failed": {
+      "message": "Größe oder Prüfsumme des iCloud-Backups stimmen nicht. Das Backup wurde nicht als erfolgreich übernommen."
+    },
+    "insufficient_space": {
+      "message": "Für die temporäre Backup-Datei ist nicht genügend lokaler Speicherplatz frei."
+    }
   }
 }

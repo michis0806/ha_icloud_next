@@ -1,6 +1,9 @@
 {
   "domain": "icloud_next",
   "name": "iCloud Next",
+  "after_dependencies": [
+    "backup"
+  ],
   "codeowners": [
     "@michis0806"
   ],
@@ -13,7 +16,8 @@
     "pyicloud"
   ],
   "requirements": [
-    "pyicloud>=2.7.0"
+    "pyicloud>=2026.10.1",
+    "requests-toolbelt==1.0.0"
   ],
-  "version": "0.3.6"
+  "version": "0.4.0"
 }

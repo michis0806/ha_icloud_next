@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.0 — 2026-11-08
+
+- Native Home Assistant backup storage in iCloud Drive using the existing iCloud
+  Next session: upload, list, download and retention-driven deletion.
+- Isolated backup client, bounded-memory transfers, committed metadata pairs and
+  SHA-256 verification before a download is handed to Home Assistant.
+- Private temporary files outside backed-up folders, local free-space checks,
+  translated errors and cancellation-safe cleanup.
+- Existing backup locations, schedules, devices and entity IDs are preserved.
+- Live transfer verified with up to 512 MiB; full system restoration and Advanced
+  Data Protection remain separate manual validation steps.
+
 ## 0.3.6
 
 - A password that Apple rejects is retried only once, after 15 minutes, before

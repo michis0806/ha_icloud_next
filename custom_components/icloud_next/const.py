@@ -1,6 +1,7 @@
 """Konstanten für iCloud Next."""
 
 DOMAIN = "icloud_next"
+DATA_BACKUP_AGENT_LISTENERS = f"{DOMAIN}_backup_agent_listeners"
 
 CONF_APPLE_ID = "apple_id"
 CONF_WITH_FAMILY = "with_family"

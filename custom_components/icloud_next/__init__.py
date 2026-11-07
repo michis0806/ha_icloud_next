@@ -28,7 +28,7 @@ from urllib.parse import quote
 from homeassistant.components import persistent_notification
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD
-from homeassistant.core import CALLBACK_TYPE, HomeAssistant
+from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.event import async_call_later
@@ -40,6 +40,7 @@ from .const import (
     CONF_APPLE_ID,
     CONF_SCAN_INTERVAL,
     CONF_WITH_FAMILY,
+    DATA_BACKUP_AGENT_LISTENERS,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     FRESH_FACTOR,
@@ -125,6 +126,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "unique_ids": set(),
         "plattformen": set(),
     }
+
+    @callback
+    def backup_agenten_aktualisieren() -> None:
+        for listener in tuple(hass.data.get(DATA_BACKUP_AGENT_LISTENERS, ())):
+            listener()
+
+    entry.async_on_unload(entry.async_on_state_change(backup_agenten_aktualisieren))
     geraete_registrieren(hass, entry)
     # OS-Updates und neue Kontogeräte ins Device-Registry übernehmen
     entry.async_on_unload(konto.async_add_listener(lambda: geraete_registrieren(hass, entry)))
@@ -143,6 +151,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if ok:
+        if (backup_agent := entry.runtime_data.get("backup_agent")) is not None:
+            await backup_agent.async_shutdown()
         # Den Monitor-Thread von pyicloud beenden, sonst läuft er nach dem Reload weiter.
         api.beenden(entry.runtime_data["sitzung"].dienst)
     return ok

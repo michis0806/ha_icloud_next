@@ -19,6 +19,7 @@ fehlt eine davon in einer späteren Version, meldet
 from __future__ import annotations
 
 import base64
+import json
 import logging
 import re
 from datetime import UTC, datetime
@@ -425,3 +426,28 @@ def konto(api: _Dienst, familie: bool) -> dict[str, Any]:
             for g in geraete.get("devices") or []
         ],
     }
+
+
+def backup_sitzung_sichern(ordner: str) -> dict[str, bytes]:
+    """Read a stable session snapshot without changing the active client."""
+    for _ in range(3):
+        paths = sorted(
+            p for p in Path(ordner).iterdir()
+            if p.is_file() and p.suffix in {".session", ".cookiejar"}
+        )
+        before = [(p.stat().st_mtime_ns, p.stat().st_size) for p in paths]
+        result = {p.name: p.read_bytes() for p in paths}
+        after = [(p.stat().st_mtime_ns, p.stat().st_size) for p in paths]
+        if before != after:
+            continue
+        try:
+            for name, content in result.items():
+                if name.endswith(".session") and not isinstance(json.loads(content), dict):
+                    raise ValueError
+        except ValueError:
+            continue
+        if any(name.endswith(".session") for name in result) and any(
+            name.endswith(".cookiejar") for name in result
+        ):
+            return result
+    raise ICloudError("Die gespeicherte iCloud-Sitzung konnte nicht konsistent gelesen werden")

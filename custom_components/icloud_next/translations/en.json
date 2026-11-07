@@ -160,5 +160,22 @@
         }
       }
     }
+  },
+  "exceptions": {
+    "auth_required": {
+      "message": "The iCloud session needs to be renewed. Please sign in to iCloud Next again."
+    },
+    "account_locked": {
+      "message": "Apple has locked the account. Unlock it before signing in again."
+    },
+    "operation_failed": {
+      "message": "The iCloud backup operation failed. Check the connection and access to iCloud Drive."
+    },
+    "integrity_failed": {
+      "message": "The iCloud backup size or checksum does not match. The backup was not accepted as complete."
+    },
+    "insufficient_space": {
+      "message": "There is not enough local storage for the temporary backup file."
+    }
   }
 }

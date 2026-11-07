@@ -83,6 +83,27 @@ Settings → Devices & services → *Add integration* → **iCloud Next**
 2. If Apple asks for two-factor verification, choose push or SMS.
 3. Enter the six-digit code.
 
+## Backup storage (0.4.0)
+
+After installing this version and restarting Home Assistant, iCloud Next is
+available as a storage location under **Settings → System → Backups**. Select it
+there for automatic backups or when creating a manual backup. Existing backup
+locations and schedules are preserved; iCloud Next is not selected automatically.
+
+The integration uses the existing account session and an account-specific
+**Home Assistant Backups** folder in iCloud Drive. Home Assistant controls backup
+encryption and retention. Uploads do not share the device-location client, and
+failed or incomplete uploads are not listed as completed backups.
+
+Uploads and downloads require temporary local space for one backup archive.
+Downloads are checked against their stored size and SHA-256 checksum before
+being handed to Home Assistant. Signing in again is handled through iCloud Next;
+the backup client never sends a two-factor code on its own.
+
+The transport has been tested with 1, 64, and 512 MiB files and a new client from
+the saved session. A complete Home Assistant system restore and access with
+Advanced Data Protection still need separate testing.
+
 ## Messages
 
 Every device that supports it gets a `notify` entity. It uses Find My's
@@ -183,3 +204,26 @@ Position **je Person**, **iCloud-Speicher** sowie Seriennummer und OS-Version de
 - AirPods: Position, Online und Letzte Ortung; Akku liefert Apple über iCloud nicht.
   Keinen Ton-Knopf: AirPods spielen den Ton nur, solange sie verbunden sind – dafür
   ist die „Wo ist?“-App da.
+
+## Backup-Speicher (0.4.0)
+
+Nach Installation dieser Version und einem Neustart von Home Assistant steht
+**iCloud Next** unter **Einstellungen → System → Backups** als Speicherort zur
+Verfügung. Dort lässt sich das Ziel für automatische oder manuelle Backups
+wählen. Bestehende Speicherorte und Zeitpläne bleiben erhalten; iCloud Next wird
+nicht automatisch ausgewählt.
+
+Die Integration verwendet die vorhandene Anmeldung und einen kontospezifischen
+Ordner **Home Assistant Backups** in iCloud Drive. Verschlüsselung und Aufbewahrung
+steuert Home Assistant. Der Upload verwendet einen getrennten Client und
+blockiert die Geräteortung nicht. Unvollständige Uploads werden nicht als
+fertige Backups angezeigt.
+
+Für Upload und Download wird temporär lokaler Platz für ein Backup-Archiv
+benötigt. Beim Download werden Größe und SHA-256 geprüft, bevor Home Assistant
+die Datei erhält. Eine erneute Anmeldung läuft über iCloud Next; der Backup-Client
+verschickt selbst keine 2FA-Codes.
+
+Der Übertragungsweg wurde mit 1, 64 und 512 MiB sowie einem neuen Client aus der
+gespeicherten Sitzung getestet. Eine vollständige Systemwiederherstellung und
+Konten mit erweitertem Datenschutz müssen noch gesondert geprüft werden.
