@@ -4,22 +4,16 @@
 [![Open your Home Assistant instance and start setting up this integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=icloud_next)
 
 Home Assistant custom integration for Apple iCloud: **Find My with active
-locating**, a location **per person**, **iCloud storage** usage and serial number /
-OS version of your devices.
+locating**, a location **per person**, **iCloud storage** usage, device information
+and **Home Assistant backups in iCloud Drive**.
 
 [Deutsche Beschreibung weiter unten.](#deutsch)
 
-## Why
+## Features
 
-Since Home Assistant 2026.2 (pyicloud ≥ 2.3) the official
-[iCloud integration](https://www.home-assistant.io/integrations/icloud/) only reads
-Apple's location cache on its regular polls — battery levels are current, but
-locations can be hours old
-([core#181730](https://github.com/home-assistant/core/issues/181730)). In addition,
-an expired Apple session leaves it stuck in `setup_error` instead of asking you to
-sign in again.
-
-## What it does differently
+iCloud Next combines active Find My requests, account storage sensors and an
+iCloud Drive destination for Home Assistant's built-in backup system. It uses its
+own Apple session and can run alongside the official iCloud integration.
 
 - **Active locating on every poll.** Apple delivers the new location with a delay;
   the integration triggers a locate request and reads the result 30 seconds later.
@@ -29,12 +23,16 @@ sign in again.
   iPad, so a watch charging at home does not override the iPhone being carried.
 - **Two-factor authentication with a choice of delivery.** During setup and
   re-authentication the code is only requested after you choose **push to your
-  Apple devices** or **SMS**. When Apple ends the session, the integration starts a
-  re-authentication (Settings → Repairs) and never sends a code on its own.
+  Apple devices** or **SMS**. After unsuccessful automatic session-renewal
+  attempts, Home Assistant asks you to sign in again under Settings → Repairs.
+  The integration never sends a verification code on its own.
 - **Its own session** under `.storage/icloud_next/` — runs side by side with the
   official integration without touching its session.
 - **Family optional.** Choose during setup (and later in the options) whether
   Family Sharing members are included.
+- **Backups in iCloud Drive.** Upload, list, download and delete Home Assistant
+  backups through the native backup system, with a configurable destination
+  path. Home Assistant controls scheduling, encryption and retention.
 
 ## Entities
 
@@ -51,13 +49,21 @@ sign in again.
 Notes:
 
 - Apple only reports serial number and OS version for devices of the signed-in
-  account, not for family members' devices, and masks the serial number (last five
-  characters only).
+  account, not for family members' devices. Serial numbers may be masked in
+  Apple's response.
 - Location entities of AirPods and other accessories are disabled by default. Apple
-  reports no battery level for them via iCloud, so they get no battery sensors. They
-  also get no Play sound button: AirPods only play the sound while connected to one
-  of your devices (never in the closed case) — use the Find My app for that.
+  provides limited data for them through this API, so the integration omits
+  battery sensors, messages and Play sound buttons for accessories. Use Apple's
+  Find My app for their sound and other accessory-specific functions.
 - New devices appear after reloading the integration.
+
+## Requirements
+
+- Validated with **Home Assistant 2026.11.0**. Older Home Assistant versions have
+  not been validated for the backup feature.
+- An Apple account with Find My enabled for the devices you want to locate.
+- Access to **iCloud Drive** and enough free iCloud storage when using backups.
+  Accounts using Advanced Data Protection have not yet been validated for backups.
 
 ## Installation
 
@@ -83,26 +89,45 @@ Settings → Devices & services → *Add integration* → **iCloud Next**
 2. If Apple asks for two-factor verification, choose push or SMS.
 3. Enter the six-digit code.
 
-## Backup storage (0.4.0)
+## Backups in iCloud Drive
 
-After installing this version and restarting Home Assistant, iCloud Next is
-available as a storage location under **Settings → System → Backups**. Select it
-there for automatic backups or when creating a manual backup. Existing backup
-locations and schedules are preserved; iCloud Next is not selected automatically.
+After installing the integration and restarting Home Assistant:
 
-The integration uses the existing account session and an account-specific
-**Home Assistant Backups** folder in iCloud Drive. Home Assistant controls backup
-encryption and retention. Uploads do not share the device-location client, and
-failed or incomplete uploads are not listed as completed backups.
+1. Open **Settings → Devices & services → iCloud Next → Configure**. Set
+   **Backup path in iCloud Drive** if you want a different destination.
+2. Open **Settings → System → Backups** and select **iCloud Next** as a storage
+   location for automatic or manual backups.
+
+The integration uses the existing account session. It does not automatically
+select the new destination or change your existing backup schedule. Home
+Assistant controls encryption and retention, including deletion of expired
+backups from the selected destination. Failed or incomplete uploads are not
+listed as completed backups.
+
+### Destination path
+
+Paths are relative to iCloud Drive, for example `Backups/Home Assistant`. Missing
+folders are created on the first upload. The destination must be empty or already
+belong to this account's backup agent; parent folders may contain other files.
+The default is the original account-specific folder,
+`Home Assistant Backups - <account hash>`.
+
+Changing the path **does not move existing backups**. Select the previous path in
+the integration options to access them again. The backup agent ID and its
+selection for automatic backups remain the same.
+
+### Transfers and verification
 
 Uploads and downloads require temporary local space for one backup archive.
 Downloads are checked against their stored size and SHA-256 checksum before
 being handed to Home Assistant. Signing in again is handled through iCloud Next;
 the backup client never sends a two-factor code on its own.
 
-The transport has been tested with 1, 64, and 512 MiB files and a new client from
-the saved session. A complete Home Assistant system restore and access with
-Advanced Data Protection still need separate testing.
+Live transport tests covered 1, 64 and 512 MiB files, plus a nested destination
+path, using fresh clients from the saved session. These checks verified
+listing, download checksums and deletion. A complete restore of an encrypted
+Home Assistant system backup has not yet been tested. Advanced Data Protection
+and storage-quota exhaustion also need separate live validation.
 
 ## Messages
 
@@ -134,7 +159,11 @@ data:
 
 - **Locate interval (minutes)** (default 15, 5–120). Every poll wakes up location
   services on all devices — shorter intervals cost battery.
-- **Include family**
+- **Include family.** Include Family Sharing devices, locations and storage usage.
+- **Backup path in iCloud Drive.** Destination folder relative to iCloud Drive,
+  such as `Backups/Home Assistant`. See [Destination path](#destination-path).
+
+Saving changed options reloads the integration.
 
 Storage and account devices are polled hourly. If Apple is temporarily unreachable,
 the last values are kept for up to 30 minutes before entities become `unavailable`.
@@ -145,22 +174,22 @@ temporarily) and starts a re-authentication under Repairs only after that.
 If Apple rejects the password, it tries exactly once more after 15 minutes (every
 failed password sign-in can lead to an account lock) and then asks you.
 If Apple locks the account, the integration stops signing in immediately, shows a
-notification with a link to Apple's unlock page and waits for the re-authentication
-(needs pyicloud 2026.10).
+notification with a link to Apple's unlock page and waits for the re-authentication.
 
 ## Limitations
 
 - Accounts that require a hardware security key (FIDO2) are not supported.
 - Two-factor control uses internal methods of
-  [pyicloud](https://github.com/timlaing/pyicloud) (tested with 2.7.0 and 2026.10.0).
-- Apart from messages and the Find My sound the integration is read-only: no lost mode, no erase.
-- Only the serial number is kept from Apple's device list; IMEI, UDID and payment
-  methods in the same response are discarded.
+  [pyicloud](https://github.com/timlaing/pyicloud) (current minimum: 2026.10.1).
+- Find My actions are limited to messages and playing a sound. Lost mode and
+  device erasure are not exposed. Backup uploads and retention-driven deletion
+  write to the configured iCloud Drive destination.
+- Account device entities use the name, model, OS version and available serial
+  number. IMEI, UDID and payment information are not exposed as entity data.
 
 ## Icon
 
-The integration ships its own brand icon (`brand/` folder inside the integration);
-Home Assistant 2026.3 or newer picks it up automatically.
+The integration includes its own brand icon in the `brand/` folder.
 
 ## Disclaimer
 
@@ -172,76 +201,109 @@ Apple Inc. Use at your own risk.
 ## Deutsch
 
 Home-Assistant-Integration für Apple iCloud: **„Wo ist?“ mit aktiver Ortung**,
-Position **je Person**, **iCloud-Speicher** sowie Seriennummer und OS-Version der Geräte.
+Position **je Person**, **iCloud-Speichersensoren**, Geräteinformationen und
+**Home-Assistant-Backups in iCloud Drive**. Die Integration verwendet eine eigene
+Apple-Sitzung und kann neben der offiziellen iCloud-Integration laufen.
 
-- Die offizielle iCloud-Integration liest seit Home Assistant 2026.2 nur noch Apples
-  Positions-Cache; Positionen sind dadurch oft stundenlang alt. iCloud Next stößt bei
-  jeder Abfrage eine **aktive Ortung** an und liest das Ergebnis 30 Sekunden später.
-- Je Gerät mit **Ortungszeit, „veraltet“ und Positionsquelle** (WLAN/GPS).
-- **Position je Person:** erstes frisches Gerät in der Reihenfolge iPhone → Apple Watch
-  → iPad, damit eine zu Hause ladende Uhr nicht das mitgeführte iPhone überstimmt.
-- **2FA mit Wahl Push oder SMS** bei Einrichtung und Neuanmeldung; der Code wird erst
-  nach der Wahl angefordert. Läuft die Anmeldung bei Apple ab, erscheint eine
-  Reparaturmeldung — es werden nie unaufgefordert Codes verschickt.
-- **Mitteilungen:** je Gerät eine `notify`-Entity („Mitteilung“) für `notify.send_message`,
-  mit Ton über die Aktion `icloud_next.display_message` („Wo ist?“ → Mitteilung anzeigen).
-- **Ton abspielen:** Knopf für den Suchton aus „Wo ist?“ (iPhone, iPad, Mac, Watch).
-- **Familie wahlweise** mit abfragen (bei der Einrichtung und in den Optionen).
+### Funktionen
+
+- **Aktive Ortung:** stößt bei jeder Abfrage eine Ortungsanfrage an und liest das
+  Ergebnis 30 Sekunden später. Je Gerät gibt es Ortungszeit, „veraltet“ und
+  Positionsquelle (WLAN/GPS).
+- **Position je Person:** erstes Gerät mit frischer Position in der Reihenfolge
+  iPhone → Apple Watch → iPad. Eine zu Hause ladende Uhr überschreibt dadurch
+  nicht die aktuelle Position des mitgeführten iPhones.
+- **2FA mit Wahl zwischen Push und SMS** bei Einrichtung und Neuanmeldung. Der
+  Code wird erst nach der Wahl angefordert. Kann die Sitzung nicht still erneuert
+  werden, erscheint nach den Wiederholungsversuchen eine Reparaturmeldung.
+- **Mitteilungen und Suchton:** `notify`-Entity und Ton-Knopf für geeignete Geräte.
+  Die Aktion `icloud_next.display_message` unterstützt Mitteilungen mit Ton.
+  Beispiele stehen unter [Messages](#messages).
+- **Familie wahlweise:** Geräte, Positionen und Speicherverbrauch der
+  Familienfreigabe lassen sich bei der Einrichtung und in den Optionen einbeziehen.
 - **iCloud-Speicher:** belegt, gesamt, frei, Prozent, je Bereich und je
   Familienmitglied, dazu Warnungen „fast voll“ und „überschritten“.
-- Seriennummer und OS-Version gibt Apple nur für Geräte des eigenen Kontos heraus;
-  die Seriennummer ist von Apple maskiert (nur die letzten fünf Zeichen).
-- Installation über HACS (Custom Repository) oder manuell nach
-  `config/custom_components/`, danach Neustart; Einrichtung über
-  *Integration hinzufügen* → **iCloud Next**.
-- Optionen: Ortungsintervall (Standard 15 Minuten) und Familie. Speicher und
-  Kontogeräte werden stündlich abgefragt; bei Störungen bleiben die letzten Werte
-  bis zu 30 Minuten erhalten. Lehnt Apple die Sitzung zweimal hintereinander ab,
-  meldet sich die Integration still neu an. Verlangt Apple dabei einen
-  Bestätigungscode, versucht sie es nach 15, 30 und 60 Minuten erneut ohne Code
-  (Apple verlangt das oft nur vorübergehend) und startet erst danach eine
-  Neuanmeldung unter Reparaturen.
-- AirPods: Position, Online und Letzte Ortung; Akku liefert Apple über iCloud nicht.
-  Keinen Ton-Knopf: AirPods spielen den Ton nur, solange sie verbunden sind – dafür
-  ist die „Wo ist?“-App da.
+- **Geräteinformationen:** Seriennummer und OS-Version der Geräte des eigenen
+  Kontos, soweit Apple sie liefert. Seriennummern können maskiert sein.
+- **Backups in iCloud Drive:** über Home Assistants eingebaute Backup-Verwaltung,
+  mit wählbarem Zielpfad. Planung, Verschlüsselung und Aufbewahrung steuert
+  Home Assistant.
 
-## Backup-Speicher (0.4.0)
+### Voraussetzungen und Einrichtung
 
-Nach Installation dieser Version und einem Neustart von Home Assistant steht
-**iCloud Next** unter **Einstellungen → System → Backups** als Speicherort zur
-Verfügung. Dort lässt sich das Ziel für automatische oder manuelle Backups
-wählen. Bestehende Speicherorte und Zeitpläne bleiben erhalten; iCloud Next wird
-nicht automatisch ausgewählt.
+Geprüft mit **Home Assistant 2026.11.0**. Ältere Versionen sind für die
+Backup-Funktion nicht geprüft. Für die Ortung muss „Wo ist?“ auf den gewünschten
+Geräten aktiv sein. Backups benötigen Zugriff auf iCloud Drive und ausreichend
+freien iCloud-Speicher.
 
-Die Integration verwendet die vorhandene Anmeldung und einen kontospezifischen
-Ordner **Home Assistant Backups** in iCloud Drive. Verschlüsselung und Aufbewahrung
-steuert Home Assistant. Der Upload verwendet einen getrennten Client und
-blockiert die Geräteortung nicht. Unvollständige Uploads werden nicht als
-fertige Backups angezeigt.
+1. Über den HACS-Button oben als Custom Repository installieren oder
+   `custom_components/icloud_next/` nach `config/custom_components/` kopieren.
+2. Home Assistant neu starten.
+3. **Einstellungen → Geräte & Dienste → Integration hinzufügen → iCloud Next**.
+4. Apple-ID, Passwort und die gewünschte Familienoption eingeben. Falls Apple
+   eine Bestätigung verlangt, Push oder SMS wählen und den sechsstelligen Code
+   eingeben.
 
-Für Upload und Download wird temporär lokaler Platz für ein Backup-Archiv
-benötigt. Beim Download werden Größe und SHA-256 geprüft, bevor Home Assistant
-die Datei erhält. Eine erneute Anmeldung läuft über iCloud Next; der Backup-Client
-verschickt selbst keine 2FA-Codes.
+### Backups in iCloud Drive
 
-Der Übertragungsweg wurde mit 1, 64 und 512 MiB sowie einem neuen Client aus der
-gespeicherten Sitzung getestet. Eine vollständige Systemwiederherstellung und
-Konten mit erweitertem Datenschutz müssen noch gesondert geprüft werden.
+1. Unter **Einstellungen → Geräte & Dienste → iCloud Next → Konfigurieren** bei
+   Bedarf den **Backup-Pfad in iCloud Drive** ändern.
+2. Unter **Einstellungen → System → Backups** iCloud Next als Speicherort für
+   automatische oder manuelle Backups auswählen.
 
-### Backup destination path / Backup-Pfad
+Das neue Ziel wird nicht automatisch ausgewählt. Vorhandene Backup-Zeitpläne
+bleiben erhalten. Home Assistant steuert die Verschlüsselung und Aufbewahrung,
+einschließlich des Löschens abgelaufener Backups im ausgewählten Ziel.
 
-Under the iCloud Next integration's options, **Backup path in iCloud Drive**
-selects the destination folder, for example `Backups/Home Assistant`. Paths are
-relative to iCloud Drive. Missing folders are created on the first upload; the
-destination must be empty or already belong to this account's backup agent.
-The default preserves the original account-specific backup folder. Changing the
-path does not move existing backups. Select the previous path in the integration
-options to access them again. The backup agent ID and automatic backup selection
-remain stable.
+Der Pfad ist relativ zu iCloud Drive, z. B. `Backups/Home Assistant`. Fehlende
+Ordner werden beim ersten Upload angelegt. Der Zielordner muss leer sein oder
+bereits diesem Backup-Ziel gehören; übergeordnete Ordner dürfen andere Dateien
+enthalten. Standard ist der bisherige kontospezifische Ordner
+`Home Assistant Backups - <Kontohash>`.
 
-In den Optionen von iCloud Next wählt **Backup-Pfad in iCloud Drive** den Zielordner,
-z. B. `Backups/Home Assistant`. Fehlende Ordner werden beim ersten Upload angelegt.
-Der Zielordner muss leer sein oder bereits diesem Konto gehören. Der voreingestellte
-Pfad erhält den bisherigen Backup-Ordner. Ein Pfadwechsel verschiebt keine Backups:
-Mit dem bisherigen Pfad sind sie wieder erreichbar. Die ID des Backup-Ziels und
-seine Auswahl für automatische Backups bleiben gleich.
+Ein Pfadwechsel **verschiebt keine vorhandenen Backups**. Mit dem bisherigen Pfad
+sind sie wieder erreichbar. Die ID des Backup-Ziels und dessen Auswahl für
+automatische Backups bleiben gleich.
+
+Upload und Download benötigen temporär lokalen Platz für ein Backup-Archiv.
+Unvollständige Uploads werden nicht als fertige Backups angezeigt. Beim Download
+werden Größe und SHA-256 geprüft, bevor Home Assistant die Datei erhält. Die
+Backup-Übertragung verwendet einen getrennten Client; Anmeldung und erneute
+Anmeldung bleiben bei iCloud Next. Der Backup-Client fordert selbst keine
+2FA-Codes an.
+
+Live geprüft wurden Übertragungen mit 1, 64 und 512 MiB sowie ein verschachtelter
+Zielpfad. Neue Clients aus der gespeicherten Sitzung konnten die Dateien
+auflisten, herunterladen, die Prüfsummen vergleichen und die Testdaten löschen.
+Eine vollständige Wiederherstellung eines verschlüsselten HA-Systembackups,
+Konten mit erweitertem Datenschutz und eine volle iCloud-Quota sind noch nicht
+live geprüft.
+
+### Optionen und Wiederanmeldung
+
+- **Ortungsintervall (Minuten):** Standard 15, einstellbar von 5 bis 120. Jede
+  Abfrage löst aktive Ortung aus; kürzere Intervalle können mehr Akku verbrauchen.
+- **Familie mitabfragen:** Geräte, Positionen und Speicher der Familienfreigabe.
+- **Backup-Pfad in iCloud Drive:** Zielordner für die Backup-Dateien.
+
+Geänderte Optionen laden die Integration neu. Speicher und Kontogeräte werden
+stündlich abgefragt. Bei vorübergehenden Störungen bleiben die letzten Werte bis
+zu 30 Minuten verfügbar. Lehnt Apple die Sitzung zweimal hintereinander ab
+(HTTP 409/421), versucht die Integration eine stille Erneuerung. Verlangt Apple
+dabei einen Bestätigungscode, folgen Versuche ohne Code nach 15, 30 und 60 Minuten;
+erst danach startet die Neuanmeldung unter Reparaturen. Ein abgelehntes Passwort
+wird nur einmal nach 15 Minuten erneut versucht. Bei einer Kontosperre enden die
+Anmeldeversuche sofort; eine Meldung verweist auf Apples Entsperrseite.
+
+### Einschränkungen
+
+- Konten mit verpflichtendem Hardware-Sicherheitsschlüssel werden nicht unterstützt.
+- Für AirPods und anderes Zubehör sind Positions-Tracker standardmäßig deaktiviert.
+  Akku-, Mitteilungs- und Ton-Entities werden für Zubehör nicht angelegt. Für
+  zubehörspezifische Funktionen die „Wo ist?“-App verwenden.
+- Bei „Wo ist?“ sind nur Mitteilungen und Suchton als Aktionen verfügbar; kein
+  Verloren-Modus und kein Löschen von Geräten. Die Backup-Funktion schreibt und
+  löscht Dateien im konfigurierten iCloud-Drive-Ziel.
+- IMEI, UDID und Zahlungsinformationen werden nicht als Entity-Daten bereitgestellt.
+
+Dieses Projekt steht nicht mit Apple in Verbindung. Nutzung auf eigene Verantwortung.
