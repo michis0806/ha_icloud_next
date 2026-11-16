@@ -118,7 +118,10 @@ selection for automatic backups remain the same.
 
 ### Transfers and verification
 
-Uploads and downloads require temporary local space for one backup archive.
+Uploads and downloads require temporary free space for one backup archive on
+the Home Assistant configuration disk. Version 0.4.2 stores these files under
+`tmp_backups/`, excluded from Core and Supervisor backups, and removes them after
+the operation. This avoids the RAM-backed `/tmp` limit on Home Assistant OS.
 Downloads are checked against their stored size and SHA-256 checksum before
 being handed to Home Assistant. Signing in again is handled through iCloud Next;
 the backup client never sends a two-factor code on its own.
@@ -265,7 +268,11 @@ Ein Pfadwechsel **verschiebt keine vorhandenen Backups**. Mit dem bisherigen Pfa
 sind sie wieder erreichbar. Die ID des Backup-Ziels und dessen Auswahl für
 automatische Backups bleiben gleich.
 
-Upload und Download benötigen temporär lokalen Platz für ein Backup-Archiv.
+Upload und Download benötigen temporär Platz für ein Backup-Archiv auf dem
+Datenträger der Home-Assistant-Konfiguration. Seit Version 0.4.2 liegen die Dateien
+unter `tmp_backups/`, sind von Core- und Supervisor-Backups ausgeschlossen und
+werden nach dem Vorgang entfernt. Dadurch begrenzt das RAM-Dateisystem `/tmp`
+unter Home Assistant OS die Backup-Größe nicht mehr.
 Unvollständige Uploads werden nicht als fertige Backups angezeigt. Beim Download
 werden Größe und SHA-256 geprüft, bevor Home Assistant die Datei erhält. Die
 Backup-Übertragung verwendet einen getrennten Client; Anmeldung und erneute

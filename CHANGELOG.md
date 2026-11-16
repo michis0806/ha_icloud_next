@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.2 — 2026-11-16
+
+- Store temporary backup archives on the configuration disk in `tmp_backups/`
+  instead of `/tmp`, which is RAM-backed on Home Assistant OS. This fixes uploads
+  failing when the archive exceeds the temporary RAM filesystem capacity.
+- Check free space on the actual destination filesystem. Temporary files retain
+  private permissions and are removed after completion or cancellation. Their
+  `.tar` suffix keeps them excluded from Core and Supervisor backups.
+- Remove abandoned integration-owned temporary archives once at Home Assistant
+  startup, without sweeping active transfers during an integration reload.
+
 ## 0.4.1 — 2026-11-08
 
 - Configure the backup destination path relative to iCloud Drive in integration

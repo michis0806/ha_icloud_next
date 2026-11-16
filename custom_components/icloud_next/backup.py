@@ -6,7 +6,9 @@ import asyncio
 import errno
 import logging
 import os
+import re
 import shutil
+import stat
 import tempfile
 import threading
 from collections.abc import AsyncIterator, Callable, Coroutine
@@ -43,12 +45,20 @@ from .const import CONF_APPLE_ID, CONF_BACKUP_PATH, DATA_BACKUP_AGENT_LISTENERS,
 _LOGGER = logging.getLogger(__name__)
 _CHUNK_SIZE = 1024 * 1024
 _METADATA_CACHE_SECONDS = 300
+_DATA_SPOOL_CLEANUP = f"{DOMAIN}_backup_spool_cleanup"
 
 
 async def async_get_backup_agents(
     hass: HomeAssistant, **kwargs: Any
 ) -> list[BackupAgent]:
     """Return one backup agent for each loaded iCloud Next account."""
+    # Run once per HA process, before exposing any agents; never sweep active files
+    # when another account loads or this integration reloads.
+    if _DATA_SPOOL_CLEANUP not in hass.data:
+        hass.data[_DATA_SPOOL_CLEANUP] = hass.async_add_executor_job(
+            _remove_abandoned_spools, Path(hass.config.path("tmp_backups"))
+        )
+    await asyncio.shield(hass.data[_DATA_SPOOL_CLEANUP])
     entries = hass.config_entries.async_loaded_entries(DOMAIN)
     agents: list[BackupAgent] = []
     for entry in entries:
@@ -104,6 +114,7 @@ class ICloudNextBackupAgent(BackupAgent):
         self._cancel_events: set[threading.Event] = set()
         self._workers: set[asyncio.Future[Any]] = set()
         self._spools: set[Path] = set()
+        self._spool_directory = Path(hass.config.path("tmp_backups"))
         self._shutting_down = False
         self._metadata_cache: list[AgentBackup] | None = None
         self._metadata_cache_until = 0.0
@@ -120,7 +131,9 @@ class ICloudNextBackupAgent(BackupAgent):
         async with self._operation_lock:
             self._ensure_available()
             try:
-                await self._async_file_io(_ensure_spool_space, backup.size)
+                await self._async_file_io(
+                    _ensure_spool_space, self._spool_directory, backup.size
+                )
                 path, file = await self._async_create_spool()
             except OSError as err:
                 raise self._filesystem_error(err) from err
@@ -329,7 +342,7 @@ class ICloudNextBackupAgent(BackupAgent):
         return await self._wait_for_worker(worker)
 
     async def _async_create_spool(self) -> tuple[Path, BinaryIO]:
-        worker = self._hass.async_add_executor_job(_create_spool)
+        worker = self._hass.async_add_executor_job(_create_spool, self._spool_directory)
         try:
             path, file = await self._wait_for_worker(worker)
         except asyncio.CancelledError:
@@ -409,8 +422,23 @@ class ICloudNextBackupAgent(BackupAgent):
         return self._agent_error(key)
 
 
-def _create_spool() -> tuple[Path, BinaryIO]:
-    fd, path = tempfile.mkstemp(prefix="icloud-next-backup-", dir="/tmp")
+def _remove_abandoned_spools(directory: Path) -> None:
+    """Remove only our private archive files left by a previous HA process."""
+    if not directory.exists():
+        return
+    for path in directory.iterdir():
+        if re.fullmatch(
+            r"icloud-next-backup-[a-z0-9_]{8}\.tar", path.name
+        ) and stat.S_ISREG(path.lstat().st_mode):
+            _remove_spool(path)
+
+
+def _create_spool(directory: Path) -> tuple[Path, BinaryIO]:
+    # Core and Supervisor exclude tmp_backups/*.tar from configuration backups.
+    directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+    fd, path = tempfile.mkstemp(
+        prefix="icloud-next-backup-", suffix=".tar", dir=directory
+    )
     return Path(path), os.fdopen(fd, "wb")
 
 
@@ -421,6 +449,7 @@ def _remove_spool(path: Path) -> None:
         _LOGGER.debug("Unable to remove private backup spool")
 
 
-def _ensure_spool_space(size: int) -> None:
-    if shutil.disk_usage("/tmp").free < size:
+def _ensure_spool_space(directory: Path, size: int) -> None:
+    directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+    if shutil.disk_usage(directory).free < size:
         raise OSError(errno.ENOSPC, "Not enough space for the backup spool")

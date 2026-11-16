@@ -483,7 +483,7 @@ async def test_full_temporary_storage_is_reported_before_upload(
 
     agent, _entry = make_agent(hass, tmp_path)
 
-    def no_space(size: int) -> None:
+    def no_space(directory: Path, size: int) -> None:
         raise OSError(errno.ENOSPC, "disk full")
 
     monkeypatch.setattr(backup, "_ensure_spool_space", no_space)
@@ -526,3 +526,75 @@ async def test_unusable_destination_has_specific_error(
         await agent.async_list_backups()
     assert error.value.translation_key == "invalid_backup_destination"
     assert not entry.runtime_data["sitzung"].abgelehnt
+
+
+@pytest.mark.asyncio
+async def test_large_upload_uses_disk_even_when_system_tmp_is_small(
+    hass: HomeAssistant, tmp_path: Path, backend: FakeBackend, monkeypatch
+) -> None:
+    from fnmatch import fnmatch
+
+    from homeassistant.components.backup.const import EXCLUDE_FROM_BACKUP
+
+    agent, _entry = make_agent(hass, tmp_path)
+    checked = []
+    expected = Path(hass.config.path("tmp_backups"))
+
+    def disk_usage(path):
+        checked.append(Path(path))
+        free = 10 * 1024**3 if Path(path) == expected else 0
+        return SimpleNamespace(free=free)
+
+    monkeypatch.setattr(backup.shutil, "disk_usage", disk_usage)
+    # Validate the real failing size without allocating a multi-GB test fixture.
+    backup._ensure_spool_space(expected, 3344291840)
+    await agent.async_upload_backup(
+        open_stream=lambda: open_payload(PAYLOAD),
+        backup=metadata(),
+        on_progress=lambda **kwargs: None,
+    )
+    assert checked == [expected, expected]
+    assert backend.upload_path.parent == expected
+    relative = backend.upload_path.relative_to(hass.config.config_dir).as_posix()
+    assert any(fnmatch(relative, pattern) for pattern in EXCLUDE_FROM_BACKUP)
+    assert not backend.upload_path.exists()
+
+
+@pytest.mark.asyncio
+async def test_download_spool_is_private_and_on_config_disk(
+    hass: HomeAssistant, tmp_path: Path, backend: FakeBackend
+) -> None:
+    import stat
+
+    agent, _entry = make_agent(hass, tmp_path)
+    stream = await agent.async_download_backup("backup-id-1")
+    path = next(iter(agent._spools))
+    assert path.parent == Path(hass.config.path("tmp_backups"))
+    assert path.suffix == ".tar"
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+    assert b"".join([chunk async for chunk in stream]) == PAYLOAD
+    assert not path.exists()
+
+
+@pytest.mark.asyncio
+async def test_startup_removes_abandoned_spools_only_once(
+    hass: HomeAssistant, tmp_path: Path
+) -> None:
+    directory = Path(hass.config.path("tmp_backups"))
+    directory.mkdir()
+    stale, file = backup._create_spool(directory)
+    file.close()
+    foreign = directory / "other-backup.tar"
+    foreign.write_bytes(b"keep")
+    link = directory / "icloud-next-backup-aaaaaaaa.tar"
+    link.symlink_to(foreign)
+    entry = FakeEntry(tmp_path)
+    hass.config_entries = SimpleNamespace(async_loaded_entries=lambda domain: [entry])
+    await backup.async_get_backup_agents(hass)
+    assert not stale.exists()
+    assert foreign.read_bytes() == b"keep"
+    assert link.is_symlink()
+    active, file = backup._create_spool(directory)
+    file.close()
+    await backup.async_get_backup_agents(hass)
+    assert active.exists()
